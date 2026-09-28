@@ -1,0 +1,332 @@
+{
+  "project": "Qwen Image Service",
+  "prefix": "QIS",
+  "date": "2026-09-29",
+  "version": "0.1",
+  "owners": ["Kiên"],
+
+  "brd": {
+    "purpose": "Biến pipeline Qwen-Image 2.1 đang chạy trên một máy thành service cài một lệnh lên máy NVIDIA bất kỳ, gọi được qua API tương thích OpenAI từ mọi nơi.",
+    "core_problem": "Pipeline sinh asset hiện chỉ chạy bằng CLI trên đúng một máy (RTX 3050): muốn dùng phải ngồi trước máy đó, mỗi lần một lệnh, không ai khác gọi được, và dựng lại trên máy khác mất nửa ngày cài ComfyUI, node, model bằng tay.",
+    "pain_points": [
+      "Chỉ gọi được từ máy local qua gen.py và tools/*.py; không có API để tool, game editor hay agent khác gọi",
+      "Không có queue: hai lệnh chạy cùng lúc tranh GPU, dễ OOM; không biết phải chờ bao lâu",
+      "Cài lên máy mới phải làm tay: ComfyUI đúng version, 2 custom node, bake Viggle GGUF (~25 phút, 45 GB tạm), tải ~15 GB model",
+      "Không biết nên chọn bản quant và upscaler nào cho máy có VRAM khác 6 GB",
+      "Muốn đổi tham số (steps, queue, giữ file) phải sửa code; không có giao diện quản trị",
+      "custom node viggle_turbo.py chỉ nằm trong thư mục portable bị gitignore, mất máy là mất"
+    ],
+    "current_cost": "Ước tính (giả định): dựng lại môi trường trên máy mới ≈ 4–6 giờ thủ công; mỗi người muốn dùng phải nhờ người giữ máy chạy hộ; GPU nhàn rỗi phần lớn thời gian vì chỉ một người dùng được.",
+    "goals": [
+      "Một lệnh cài (irm|iex trên Windows, curl|bash trên Linux) đưa máy NVIDIA sạch đến trạng thái gọi được API trong ≤ 60 phút, không thao tác tay ngoài trả lời prompt",
+      "Client OpenAI SDK chỉ đổi base_url và api_key là sinh được ảnh (images.generate / images.edit)",
+      "Mọi tool hiện có (generate, edit, enhance, refine, upscale, outpaint, pixelize, remove-bg, compose, fidelity) gọi được qua API",
+      "Queue nhận nhiều request cùng lúc, từ chối bằng 429 + Retry-After khi đầy, không mất job khi restart",
+      "Dashboard web chỉnh được queue, quota, model, key, user mà không sửa file hay restart",
+      "Kiến trúc node sẵn sàng ghép mesh (node_id, Executor, blob sha256, /v1/node/info) mà không phải viết lại"
+    ],
+    "out_of_scope": [
+      "GPU AMD, Intel, Apple Silicon và inference trên CPU",
+      "Nhiều GPU trên một máy",
+      "Mesh nhiều node, đồng bộ user/key giữa node (để P5)",
+      "Nhận workflow ComfyUI thô từ client",
+      "Billing, thanh toán, đăng ký tài khoản tự phục vụ",
+      "SSO/OIDC (chỉ để sẵn interface)"
+    ],
+    "success_metrics": [
+      "Cài mới trên 1 VM Windows sạch có NVIDIA: ≤ 60 phút tới /readyz = 200, không lỗi, trước 22/12/2026",
+      "30 request đồng thời trên máy 6 GB: 100% nhận 202/200 hoặc 429 có Retry-After, 0 job mất sau khi kill ComfyUI giữa chừng",
+      "Overhead gateway ≤ 5% so với gọi ComfyUI trực tiếp (đo turbo 768², 10 lần)",
+      "Chạy qua Cloudflare Tunnel: 0 lỗi 524 với job 3 phút (enhance) trong 20 lần thử",
+      "Golden test: workflow JSON của engine mới giống hệt gen.py/tools cũ ở 100% case"
+    ],
+    "personas": [
+      "Owner / người vận hành node — cần cài nhanh, chọn đúng model theo máy, chỉnh queue và theo dõi GPU qua web",
+      "Game dev / artist dùng tool nội bộ — cần gọi sinh sprite, edit, upscale từ script hoặc editor bằng API chuẩn",
+      "Agent AI (Claude qua MCP, pipeline tự động) — cần API ổn định, có job id, SSE tiến độ và webhook"
+    ],
+    "scope": [
+      ["Trong phạm vi", "Gateway API (OpenAI-compat + jobs + tools), queue/scheduler, ComfyUI supervisor, dashboard, auth, installer Windows/Linux, tích hợp Cloudflare Tunnel"],
+      ["Ngoài phạm vi", "Non-NVIDIA, multi-GPU, mesh, billing, SSO"],
+      ["Người dùng", "1 owner vận hành; client là tool nội bộ, script và agent qua API key"],
+      ["Nền tảng đích", "Windows 10/11 x64, Ubuntu 22.04/24.04; NVIDIA ≥ 6 GB VRAM, RAM ≥ 32 GB"],
+      ["Thời gian dự kiến", "≈ 12 tuần, 30/09/2026 → 22/12/2026 (giả định 1 dev full-time có AI hỗ trợ)"]
+    ],
+    "risks": [
+      {"risk": "License Qwen Research chỉ cho phi thương mại; có thể không được phân phối lại GGUF đã bake", "likelihood": "Cao", "impact": "Cao", "mitigation": "Hiển thị commercial_ok trên dashboard và /v1/models; repo HF để private + HF_TOKEN; giữ đường bake tại máy (qis models bake); gửi mail xin license trước M6."},
+      {"risk": "Cloudflare cắt request im lặng > 100 s (524) với job base/enhance", "likelihood": "Cao", "impact": "TB", "mitigation": "Keepalive khoảng trắng/SSE ping 15 s ngay từ M2; test bắt buộc job 3 phút qua tunnel trong M2."},
+      {"risk": "ComfyUI đổi API/node khi nâng version làm hỏng workflow", "likelihood": "TB", "impact": "Cao", "mitigation": "Pin commit ComfyUI 0.37.0 + ComfyUI-GGUF; golden test + e2e GPU chạy trước mỗi lần nâng pin."},
+      {"risk": "Dashboard (M5) phình to làm trễ installer", "likelihood": "TB", "impact": "TB", "mitigation": "M5 chỉ làm 8 trang đã chốt; trang phụ vào Deferred; installer M6 không phụ thuộc UI (dùng CLI qis)."},
+      {"risk": "Chỉ có máy 6 GB để test; tier T2–T5 chưa kiểm chứng", "likelihood": "Cao", "impact": "TB", "mitigation": "Thuê GPU cloud theo giờ (12/16/24 GB) trong M6 để chạy benchmark từng tier trước khi chốt manifest."}
+    ]
+  },
+
+  "prd": {
+    "feature_groups": [
+      {
+        "title": "API TƯƠNG THÍCH OPENAI",
+        "features": [
+          {"name": "POST /v1/images/generations", "desc": "Nhận model (preset), prompt, n 1–8, size WxH/auto, quality, background transparent, output_format, response_format b64_json/url. Tham số mở rộng qua extra_body (seed, steps, grid, palette…)."},
+          {"name": "POST /v1/images/edits", "desc": "Multipart 1–3 ảnh ref + prompt, mask tuỳ chọn. Ảnh đầu quyết định khung output."},
+          {"name": "Stream + partial images", "desc": "stream:true trả SSE theo sự kiện image_generation.partial_image / completed của OpenAI, preview latent tối đa 3 ảnh."},
+          {"name": "GET /v1/models", "desc": "Liệt kê preset khả dụng trên profile hiện tại, kèm est_s và cờ commercial_ok."},
+          {"name": "Chống 524 Cloudflare", "desc": "Request đồng bộ gửi keepalive mỗi 15 s; job ước tính > 90 s có thể trả 400 use_async kèm job_id khi tắt keepalive."}
+        ]
+      },
+      {
+        "title": "JOB, PIPELINE VÀ TOOLS",
+        "features": [
+          {"name": "Job API bất đồng bộ", "desc": "POST /v1/jobs trả 202 kèm position và eta_s; GET, DELETE (huỷ, interrupt nếu đang chạy), retry, liệt kê theo key. Hỗ trợ Idempotency-Key 24 h."},
+          {"name": "Pipeline nhiều op", "desc": "Một job gồm chuỗi op (enhance, generate, refine, upscale, outpaint, pixelize…) nối bằng $prev/$step[i]; n>1 tự map qua các op sau."},
+          {"name": "Tools endpoint", "desc": "/v1/tools/{op} cho từng op đơn lẻ; op CPU (pixelize, remove-bg, compose, fidelity) chạy ngoài queue GPU."},
+          {"name": "SSE tiến độ + webhook", "desc": "Sự kiện queued/started/progress/preview/op_done/succeeded/failed, nối lại bằng Last-Event-ID; webhook ký HMAC, retry 3 lần."},
+          {"name": "Files", "desc": "Upload ảnh một lần dùng lại bằng file_id; lưu theo sha256; URL có ký hết hạn; tự dọn theo retention."},
+          {"name": "MCP endpoint", "desc": "/mcp Streamable HTTP với các tool generate_image, edit_image, pixelize, upscale, refine, outpaint, get_job, list_presets."}
+        ]
+      },
+      {
+        "title": "QUEUE VÀ SCHEDULER",
+        "features": [
+          {"name": "Admission control", "desc": "Từ chối 429 queue_full khi số job chờ ≥ max_pending hoặc tổng ETA > max_wait_s; 429 key_limit khi vượt quota key; 400 khi job vượt max_cost_s."},
+          {"name": "Dispatcher công bằng", "desc": "Chấm điểm priority + aging + model affinity − fair-share theo key; chỉ đẩy 1 job (+1 prefetch) xuống ComfyUI."},
+          {"name": "Phục hồi lỗi", "desc": "OOM retry 1 lần ở cấu hình nhẹ hơn; ComfyUI crash tự restart và chạy lại job (tối đa 2 lần); restart gateway không mất job."},
+          {"name": "Giới hạn theo máy", "desc": "max_pending mặc định = target_wait_s / avg_job_s từ benchmark lúc cài; ETA cập nhật EWMA theo thời gian chạy thật."}
+        ]
+      },
+      {
+        "title": "DASHBOARD VÀ XÁC THỰC",
+        "features": [
+          {"name": "Đăng nhập", "desc": "Username hoặc email + password (argon2id), session cookie + CSRF, khoá 15 phút sau 5 lần sai; role admin/operator/viewer."},
+          {"name": "Tổng quan & Jobs", "desc": "GPU, VRAM, nhiệt độ, queue, job đang chạy kèm preview; bảng job lọc, huỷ, retry, xem output."},
+          {"name": "Playground", "desc": "Form generate/edit/tool/pipeline, kéo thả ref, xem progress trực tiếp, copy lệnh curl/Python tương ứng."},
+          {"name": "Queue, Settings, Models", "desc": "Chỉnh max_pending, trọng số scheduler, retention, public URL… có hiệu lực ngay; xem/tải/đổi profile model, chạy benchmark."},
+          {"name": "API Keys & Users", "desc": "Tạo key (hiện 1 lần), scope, priority, quota, hạn dùng, thu hồi; quản lý user và role."},
+          {"name": "Logs & System", "desc": "Tail log gateway/ComfyUI, restart ComfyUI/service, kiểm tra và áp dụng update, sao lưu DB."}
+        ]
+      },
+      {
+        "title": "CÀI ĐẶT VÀ VẬN HÀNH",
+        "features": [
+          {"name": "Installer một lệnh", "desc": "install.ps1 (irm|iex) và install.sh (curl|bash), có chế độ không tương tác qua flag/biến môi trường; chạy lại an toàn (idempotent)."},
+          {"name": "Detect phần cứng + chọn profile", "desc": "Đọc GPU/VRAM/driver/compute cap, RAM, ổ đĩa; đề xuất tier T0–T5 và bộ model + upscaler; hiện dung lượng tải, thời gian/ảnh, license."},
+          {"name": "Tải model có kiểm tra", "desc": "Theo manifest models.yaml: resume, sha256, HF_TOKEN, dùng lại file đã có."},
+          {"name": "Service + Cloudflare Tunnel", "desc": "Đăng ký WinSW/systemd tự khởi động; tuỳ chọn --tunnel-token cài cloudflared trỏ vào 127.0.0.1."},
+          {"name": "CLI qis", "desc": "status, logs, doctor, benchmark, update (có rollback), models, profile, admin, key, db backup, uninstall."}
+        ]
+      }
+    ],
+    "architecture": [
+      "Gateway: Python 3.12, FastAPI + uvicorn, một process, bind 127.0.0.1:8080; ra Internet qua cloudflared",
+      "Engine: ComfyUI 0.37.0 (pin commit) chạy subprocess chỉ nghe loopback, giám sát bởi ComfySupervisor; custom node ComfyUI-GGUF, pixelart_retro, viggle_turbo",
+      "Scheduler: queue trong gateway, dispatcher chấm điểm, Executor interface (LocalComfyExecutor ở v1), CpuPool cho op CPU",
+      "Lưu trữ: SQLite WAL (SQLAlchemy + Alembic) cho metadata; blob store theo sha256 trên filesystem",
+      "Frontend: React + Vite + TypeScript + Tailwind + shadcn/ui, build static serve tại /admin",
+      "Cài đặt: uv + torch cu128/cu126, WinSW (Windows) / systemd (Linux), manifest models.yaml, gói release trên GitHub Releases + R2"
+    ],
+    "data_model": [
+      "Node — id, name, public_url, pubkey",
+      "User — id, email, username, pw_hash, role, disabled, locked_until",
+      "Session — id(hash), user_id, csrf, expires_at, revoked",
+      "ApiKey — id, prefix, hash, scopes, priority, max_pending, rpm, daily_images, allowed_models, expires_at, revoked_at",
+      "Job — id, api_key_id, origin_node, exec_node, kind, spec, status, priority, attempts, error, result, eta_s, idempotency_key, webhook_url",
+      "JobEvent — job_id, seq, type, data",
+      "File / Blob — file_id, sha256, mime, width, height, has_alpha, purpose, expires_at / sha256, path, refcount",
+      "Setting — scope (node|cluster), key, value; PromptCache — key, prompt, ratio; Audit — actor, action, target"
+    ],
+    "roadmap": [
+      {"phase": "Phase 1 — Core API (P1)", "scope": "Engine tách khỏi gen.py, ComfyUI supervisor, queue/scheduler, OpenAI images API, jobs, files, API key", "milestones": "M0, M1, M2"},
+      {"phase": "Phase 2 — Tools & Pipeline (P2)", "scope": "Mọi tool thành op, pipeline nhiều bước, SSE/partial, webhook, retention, MCP, gen.py thành client", "milestones": "M3"},
+      {"phase": "Phase 3 — Dashboard (P3)", "scope": "Auth, admin API, runtime settings, SPA 8+ trang", "milestones": "M4, M5"},
+      {"phase": "Phase 4 — Installer & Release (P4)", "scope": "Detect phần cứng, manifest + tier, install.ps1/install.sh, service, tunnel, update/rollback, CI release", "milestones": "M6, M7"},
+      {"phase": "Phase 5 — Mesh (P5)", "scope": "Nhiều node chia tải, định tuyến theo ETA, đồng bộ cluster settings (thiết kế riêng docs/MESH.md)", "milestones": "Deferred"}
+    ],
+    "permissions": [
+      {"permission": "images:generate", "meaning": "Gọi /v1/images/generations và op generate", "default": "Mọi API key"},
+      {"permission": "images:edit", "meaning": "Gọi /v1/images/edits và op edit/outpaint", "default": "Mọi API key"},
+      {"permission": "tools:*", "meaning": "Gọi /v1/tools/* (refine, upscale, pixelize…)", "default": "Mọi API key"},
+      {"permission": "files:*", "meaning": "Upload, đọc, xoá file của chính key", "default": "Mọi API key"},
+      {"permission": "jobs:read", "meaning": "Xem job của chính key", "default": "Mọi API key"},
+      {"permission": "admin:*", "meaning": "Gọi admin API bằng key (automation)", "default": "Không; chỉ cấp tay"},
+      {"permission": "role admin", "meaning": "Toàn quyền dashboard: setting, model, user, key", "default": "Tài khoản tạo lúc cài"},
+      {"permission": "role operator", "meaning": "Quản lý job, key của mình, playground; không sửa hệ thống", "default": "Không"},
+      {"permission": "role viewer", "meaning": "Chỉ xem dashboard", "default": "Không"}
+    ]
+  },
+
+  "milestones": [
+    {
+      "id": "M0",
+      "title": "SCAFFOLDING + ENGINE",
+      "status": "⏳ planned",
+      "description": "Dựng khung repo và tách engine khỏi gen.py/tools; gateway khởi động và điều khiển được ComfyUI.",
+      "verification": "uv run qis-gateway khởi động ComfyUI, /readyz = 200 sau warm-up; golden test workflow mới == gen.py/tools cũ xanh; kill ComfyUI thì supervisor tự dựng lại trong ≤ 30 s.",
+      "tasks": [
+        {"task": "Khung repo uv/ruff/pytest + vendor custom node", "owner": "Kiên", "priority": "Urgent", "status": "⏳"},
+        {"task": "Tách engine/workflows.py + golden test", "owner": "Kiên", "priority": "Urgent", "status": "⏳"},
+        {"task": "ComfyClient HTTP + WebSocket", "owner": "Kiên", "priority": "Urgent", "status": "⏳"},
+        {"task": "ComfySupervisor: spawn, health, restart, warm-up", "owner": "Kiên", "priority": "Urgent", "status": "⏳"},
+        {"task": "Config loader + app skeleton FastAPI", "owner": "Kiên", "priority": "High", "status": "⏳"}
+      ]
+    },
+    {
+      "id": "M1",
+      "title": "QUEUE + SCHEDULER",
+      "status": "⏳ planned",
+      "description": "Lõi xử lý đồng thời: DB, job model, admission, dispatcher, executor và phục hồi lỗi.",
+      "verification": "Test với fake ComfyUI: 30 job đồng thời → đúng max_pending vào queue, phần còn lại 429 + Retry-After; fair-share 2 key chạy xen kẽ; kill ComfyUI giữa job → job chạy lại và thành công; restart gateway → job queued vẫn còn.",
+      "tasks": [
+        {"task": "Schema SQLite + Alembic + ULID", "owner": "Kiên", "priority": "Urgent", "status": "⏳"},
+        {"task": "Cost model + admission control", "owner": "Kiên", "priority": "Urgent", "status": "⏳"},
+        {"task": "Dispatcher: priority, aging, affinity, fair-share", "owner": "Kiên", "priority": "Urgent", "status": "⏳"},
+        {"task": "LocalComfyExecutor + CpuPool", "owner": "Kiên", "priority": "Urgent", "status": "⏳"},
+        {"task": "Huỷ, timeout, retry OOM/crash, phục hồi khi restart", "owner": "Kiên", "priority": "High", "status": "⏳"},
+        {"task": "Fake ComfyUI + bộ test integration scheduler", "owner": "Kiên", "priority": "High", "status": "⏳"}
+      ]
+    },
+    {
+      "id": "M2",
+      "title": "OPENAI API + JOBS + FILES",
+      "status": "⏳ planned",
+      "description": "Mở API ra ngoài: images generations/edits theo chuẩn OpenAI, job API, file, API key, qua Cloudflare Tunnel.",
+      "verification": "Từ máy khác, openai.OpenAI(base_url=https://<tunnel>/v1).images.generate(model='pixelart-16bit-64') trả ảnh; job enhance 3 phút qua tunnel không bị 524; key sai nhận 401 đúng định dạng lỗi OpenAI.",
+      "tasks": [
+        {"task": "Blob store sha256 + /v1/files", "owner": "Kiên", "priority": "Urgent", "status": "⏳"},
+        {"task": "API key: tạo bằng CLI, hash, middleware, scope", "owner": "Kiên", "priority": "Urgent", "status": "⏳"},
+        {"task": "Preset + /v1/images/generations, /edits, /v1/models", "owner": "Kiên", "priority": "Urgent", "status": "⏳"},
+        {"task": "/v1/jobs + keepalive chống 524", "owner": "Kiên", "priority": "Urgent", "status": "⏳"},
+        {"task": "/v1/node/info, healthz/readyz, metrics", "owner": "Kiên", "priority": "High", "status": "⏳"},
+        {"task": "E2E GPU qua Cloudflare Tunnel", "owner": "Kiên", "priority": "High", "status": "⏳"}
+      ]
+    },
+    {
+      "id": "M3",
+      "title": "TOOLS + PIPELINE + STREAMING",
+      "status": "⏳ planned",
+      "description": "Đưa mọi tool thành op, chạy pipeline nhiều bước, stream tiến độ, webhook, MCP; gen.py thành client.",
+      "verification": "Một request pipeline enhance → generate(n=4) → refine → upscale → pixelize trả đủ 4 bộ output; SSE nhận progress + preview; webhook nhận chữ ký HMAC hợp lệ; Claude gọi được generate_image qua /mcp; gen.py cũ chạy lại đúng các lệnh trong README qua API.",
+      "tasks": [
+        {"task": "Op refine, upscale (esrgan/nearest/lanczos)", "owner": "Kiên", "priority": "Urgent", "status": "⏳"},
+        {"task": "Op outpaint tổng hợp", "owner": "Kiên", "priority": "High", "status": "⏳"},
+        {"task": "Op CPU: pixelize, remove-bg, compose, fidelity", "owner": "Kiên", "priority": "High", "status": "⏳"},
+        {"task": "Pipeline executor ($prev, $step, map n)", "owner": "Kiên", "priority": "Urgent", "status": "⏳"},
+        {"task": "SSE job + stream/partial_images OpenAI", "owner": "Kiên", "priority": "High", "status": "⏳"},
+        {"task": "Webhook, retention, URL có ký", "owner": "Kiên", "priority": "Normal", "status": "⏳"},
+        {"task": "/mcp endpoint + gen.py thành client", "owner": "Kiên", "priority": "Normal", "status": "⏳"}
+      ]
+    },
+    {
+      "id": "M4",
+      "title": "AUTH + ADMIN API",
+      "status": "⏳ planned",
+      "description": "Nền backend cho dashboard: user, session, role, runtime settings, admin API và sự kiện realtime.",
+      "verification": "Test: viewer gọi PUT /admin/api/settings nhận 403, admin nhận 200 và max_pending mới áp dụng cho request kế tiếp; thiếu X-CSRF-Token nhận 403; sai password 5 lần bị khoá 15 phút.",
+      "tasks": [
+        {"task": "User, session, argon2id, CSRF, lockout", "owner": "Kiên", "priority": "Urgent", "status": "⏳"},
+        {"task": "Runtime settings có schema + áp dụng nóng", "owner": "Kiên", "priority": "Urgent", "status": "⏳"},
+        {"task": "Admin API: users, keys, jobs, models, system", "owner": "Kiên", "priority": "High", "status": "⏳"},
+        {"task": "SSE /admin/api/events + NVML + stats_minute", "owner": "Kiên", "priority": "High", "status": "⏳"},
+        {"task": "Audit log", "owner": "Kiên", "priority": "Normal", "status": "⏳"}
+      ]
+    },
+    {
+      "id": "M5",
+      "title": "DASHBOARD SPA",
+      "status": "⏳ planned",
+      "description": "Giao diện web dựng mới cho vận hành node hằng ngày.",
+      "verification": "Playwright smoke: đăng nhập → đổi max_pending → tạo key → chạy playground ra ảnh → huỷ job → xem log; mọi trang render ở 1280px và 390px, sáng/tối.",
+      "tasks": [
+        {"task": "Khung SPA: Vite, router, layout, theme, login", "owner": "Kiên", "priority": "Urgent", "status": "⏳"},
+        {"task": "Trang Tổng quan + Jobs", "owner": "Kiên", "priority": "Urgent", "status": "⏳"},
+        {"task": "Trang Playground", "owner": "Kiên", "priority": "High", "status": "⏳"},
+        {"task": "Trang Queue & Limits + Settings (form từ schema)", "owner": "Kiên", "priority": "High", "status": "⏳"},
+        {"task": "Trang Models, API Keys, Users", "owner": "Kiên", "priority": "High", "status": "⏳"},
+        {"task": "Trang Logs, System + test Playwright", "owner": "Kiên", "priority": "Normal", "status": "⏳"}
+      ]
+    },
+    {
+      "id": "M6",
+      "title": "INSTALLER WINDOWS + MODEL PROFILES",
+      "status": "⏳ planned",
+      "description": "Một lệnh irm | iex cài xong node trên Windows, chọn đúng bộ model theo phần cứng.",
+      "verification": "Trên VM Windows 11 sạch có GPU NVIDIA: một lệnh cài → service tự chạy sau reboot → /readyz = 200 → gọi API qua hostname tunnel thành công → dashboard đăng nhập được; chạy lại installer không phá cài đặt cũ.",
+      "tasks": [
+        {"task": "hardware.py + chọn tier T0–T5", "owner": "Kiên", "priority": "Urgent", "status": "⏳"},
+        {"task": "Bake Viggle Q8/BF16 + manifest models.yaml", "owner": "Kiên", "priority": "Urgent", "status": "⏳"},
+        {"task": "Benchmark tier trên GPU cloud 12/16/24 GB", "owner": "Kiên", "priority": "High", "status": "⏳"},
+        {"task": "install.ps1: preflight, uv, ComfyUI pin, tải model", "owner": "Kiên", "priority": "Urgent", "status": "⏳"},
+        {"task": "WinSW service + cloudflared + benchmark sau cài", "owner": "Kiên", "priority": "Urgent", "status": "⏳"},
+        {"task": "CLI qis + doctor", "owner": "Kiên", "priority": "High", "status": "⏳"}
+      ]
+    },
+    {
+      "id": "M7",
+      "title": "LINUX + RELEASE + HARDENING",
+      "status": "⏳ planned",
+      "description": "Hỗ trợ Linux, quy trình phát hành, cập nhật có rollback, tài liệu vận hành; chốt v1.0.",
+      "verification": "curl|bash trên Ubuntu 22.04 và 24.04 sạch cài thành công; qis update lên bản mới rồi rollback khi /readyz fail; CI tạo release có hash; docs/API.md và docs/OPERATIONS.md đủ để người khác tự cài và gọi API.",
+      "tasks": [
+        {"task": "install.sh + systemd", "owner": "Kiên", "priority": "Urgent", "status": "⏳"},
+        {"task": "qis update có rollback + backup DB", "owner": "Kiên", "priority": "High", "status": "⏳"},
+        {"task": "CI build release + host script trên R2/Pages", "owner": "Kiên", "priority": "High", "status": "⏳"},
+        {"task": "Soát bảo mật + load test", "owner": "Kiên", "priority": "High", "status": "⏳"},
+        {"task": "docs/API.md, docs/OPERATIONS.md, phát hành v1.0", "owner": "Kiên", "priority": "Normal", "status": "⏳"}
+      ]
+    }
+  ],
+
+  "tasks": [
+    {"name": "Dựng khung repo với uv, ruff, pytest và cấu trúc thư mục", "pic": "Kiên", "progress": "", "priority": "1 - Urgent", "status": "", "deadline": "9/30/2026", "description": "Tạo pyproject.toml, uv.lock, thư mục server/ engine/ web/ install/ cli/ tests/, CI lint+test trên GitHub Actions. Xong khi uv run pytest và ruff chạy xanh trên CI.", "sprint": "1 - Research And Plan", "type": "Task", "difficulty": "4 - Easy", "milestone": "M0"},
+    {"name": "Đưa custom node viggle_turbo và pixelart_retro vào repo", "pic": "Kiên", "progress": "", "priority": "1 - Urgent", "status": "", "deadline": "9/30/2026", "description": "Chuyển viggle_turbo.py (đang chỉ nằm trong ComfyUI portable) và pixelart_retro vào engine/comfy_nodes/, ghi comfy.lock pin ComfyUI 0.37.0 (73c9bad) và ComfyUI-GGUF (373048b).", "sprint": "1 - Research And Plan", "type": "Task", "difficulty": "4 - Easy", "milestone": "M0"},
+    {"name": "Tách engine/workflows.py từ gen.py và tools", "pic": "Kiên", "progress": "", "priority": "1 - Urgent", "status": "", "deadline": "10/2/2026", "description": "Hàm thuần t2i, edit, enhance, upscale, refine và đuôi pixelize; hằng số sang constants.py; tên file model lấy từ profile. Xong khi gen.py cũ vẫn chạy khi import từ engine.", "sprint": "2 - Cooking", "type": "Task", "difficulty": "3 - Moderate", "milestone": "M0"},
+    {"name": "Viết golden test so workflow mới với code cũ", "pic": "Kiên", "progress": "", "priority": "1 - Urgent", "status": "", "deadline": "10/2/2026", "description": "Snapshot JSON workflow của gen.py/tools cũ cho ≥ 20 tổ hợp tham số (t2i, edit 1–3 ref, base, turbo, transparent, pixelize, refine, upscale); engine mới phải khớp 100%.", "sprint": "3 - Evaluating And Improve", "type": "Task", "difficulty": "3 - Moderate", "milestone": "M0"},
+    {"name": "Viết ComfyClient async dùng HTTP và WebSocket", "pic": "Kiên", "progress": "", "priority": "1 - Urgent", "status": "", "deadline": "10/5/2026", "description": "httpx + websockets: upload ảnh, submit prompt, nhận progress/executing/executed và preview binary, interrupt, lấy output. Thay polling /history. Xong khi chạy được 1 job thật và nhận đủ sự kiện.", "sprint": "2 - Cooking", "type": "Task", "difficulty": "3 - Moderate", "milestone": "M0"},
+    {"name": "Dựng ComfySupervisor quản lý vòng đời ComfyUI", "pic": "Kiên", "progress": "", "priority": "1 - Urgent", "status": "", "deadline": "10/6/2026", "description": "Spawn ComfyUI loopback với reserve-vram theo config, health check 5 s, restart có backoff, xoay log, warm-up 256² 1 step, trạng thái starting/ready/crashed. Xong khi kill process thì tự lên lại ≤ 30 s.", "sprint": "2 - Cooking", "type": "Task", "difficulty": "2 - Hard", "milestone": "M0"},
+    {"name": "Dựng app skeleton FastAPI và config loader", "pic": "Kiên", "progress": "", "priority": "2 - High", "status": "", "deadline": "10/6/2026", "description": "config.toml + biến môi trường, lifespan khởi động supervisor, request id, log JSON, /healthz, /readyz. Xong khi uv run qis-gateway lên và /readyz phản ánh trạng thái ComfyUI.", "sprint": "2 - Cooking", "type": "Task", "difficulty": "4 - Easy", "milestone": "M0"},
+    {"name": "Thiết kế schema SQLite với Alembic và ULID", "pic": "Kiên", "progress": "", "priority": "1 - Urgent", "status": "", "deadline": "10/8/2026", "description": "Bảng nodes, jobs, job_events, files, blobs, api_keys, settings, prompt_cache, audit, stats_minute theo DESIGN §4; WAL mode; ID ULID có prefix; migration đầu tiên chạy sạch trên DB rỗng.", "sprint": "2 - Cooking", "type": "Task", "difficulty": "3 - Moderate", "milestone": "M1"},
+    {"name": "Viết cost model và admission control", "pic": "Kiên", "progress": "", "priority": "1 - Urgent", "status": "", "deadline": "10/9/2026", "description": "Ước lượng giây GPU theo op, steps, megapixel, model; từ chối 429 queue_full/key_limit kèm Retry-After, 400 khi vượt max_cost_s. Unit test cho từng nhánh.", "sprint": "2 - Cooking", "type": "User Story", "difficulty": "3 - Moderate", "milestone": "M1"},
+    {"name": "Dựng dispatcher với priority, aging, affinity, fair-share", "pic": "Kiên", "progress": "", "priority": "1 - Urgent", "status": "", "deadline": "10/12/2026", "description": "Chấm điểm theo DESIGN §5.4, trọng số đọc từ settings; chỉ giữ 1 job chạy + 1 prefetch ở ComfyUI; tính ETA và position cho từng job. Unit test thứ tự chọn job.", "sprint": "2 - Cooking", "type": "User Story", "difficulty": "2 - Hard", "milestone": "M1"},
+    {"name": "Viết interface Executor, LocalComfyExecutor và CpuPool", "pic": "Kiên", "progress": "", "priority": "1 - Urgent", "status": "", "deadline": "10/13/2026", "description": "Protocol capabilities/estimate/run/cancel; LocalComfyExecutor chạy op GPU qua ComfyClient và phát sự kiện; CpuPool ProcessPool cho pixelize. Xong khi generate + pixelize chạy qua executor.", "sprint": "2 - Cooking", "type": "Task", "difficulty": "3 - Moderate", "milestone": "M1"},
+    {"name": "Xử lý huỷ, timeout, retry và phục hồi khi restart", "pic": "Kiên", "progress": "", "priority": "2 - High", "status": "", "deadline": "10/14/2026", "description": "DELETE job gọi /interrupt; timeout theo cost; OOM retry 1 lần với cấu hình nhẹ (degraded); crash retry ≤ 2; khởi động lại gateway đưa job running về queued.", "sprint": "2 - Cooking", "type": "User Story", "difficulty": "2 - Hard", "milestone": "M1"},
+    {"name": "Dựng fake ComfyUI và bộ test integration scheduler", "pic": "Kiên", "progress": "", "priority": "2 - High", "status": "", "deadline": "10/15/2026", "description": "Server giả mô phỏng queue, progress WS, lỗi OOM, crash; test 30 job đồng thời, fair-share 2 key, cancel, crash-retry, restart-recovery chạy trên CI không cần GPU.", "sprint": "3 - Evaluating And Improve", "type": "Task", "difficulty": "3 - Moderate", "milestone": "M1"},
+    {"name": "Dựng blob store sha256 và API /v1/files", "pic": "Kiên", "progress": "", "priority": "1 - Urgent", "status": "", "deadline": "10/16/2026", "description": "Lưu theo nội dung + refcount; validate ảnh (byte, pixel, decode lại bằng Pillow); POST/GET/DELETE /v1/files và /content. Test ảnh bomb bị từ chối.", "sprint": "2 - Cooking", "type": "User Story", "difficulty": "3 - Moderate", "milestone": "M2"},
+    {"name": "Làm API key: tạo bằng CLI, hash, middleware, scope, quota", "pic": "Kiên", "progress": "", "priority": "1 - Urgent", "status": "", "deadline": "10/19/2026", "description": "Key sk-qis-…, lưu sha256+pepper, prefix; qis key create/revoke; middleware Bearer, kiểm scope, max_pending/rpm theo key; lỗi 401/403 đúng định dạng OpenAI.", "sprint": "2 - Cooking", "type": "User Story", "difficulty": "3 - Moderate", "milestone": "M2"},
+    {"name": "Làm preset và endpoint /v1/images/generations, /edits, /v1/models", "pic": "Kiên", "progress": "", "priority": "1 - Urgent", "status": "", "deadline": "10/21/2026", "description": "presets.yaml; map trường OpenAI (size, quality, background, n, response_format, output_format) và extra_body sang JobSpec; response đúng dạng OpenAI + trường qis. Test bằng openai SDK.", "sprint": "2 - Cooking", "type": "User Story", "difficulty": "2 - Hard", "milestone": "M2"},
+    {"name": "Làm /v1/jobs và keepalive chống lỗi 524", "pic": "Kiên", "progress": "", "priority": "1 - Urgent", "status": "", "deadline": "10/22/2026", "description": "POST/GET/DELETE/list/retry job, Idempotency-Key; request đồng bộ gửi khoảng trắng mỗi 15 s, tắt được bằng api.sync_keepalive (khi đó trả 400 use_async).", "sprint": "2 - Cooking", "type": "User Story", "difficulty": "3 - Moderate", "milestone": "M2"},
+    {"name": "Làm /v1/node/info, readyz và /metrics", "pic": "Kiên", "progress": "", "priority": "2 - High", "status": "", "deadline": "10/22/2026", "description": "node_id + ed25519 sinh lần đầu; node/info trả GPU, profile, preset, queue, perf; metrics Prometheus chỉ cho loopback hoặc token.", "sprint": "2 - Cooking", "type": "Task", "difficulty": "4 - Easy", "milestone": "M2"},
+    {"name": "Kiểm thử E2E trên GPU qua Cloudflare Tunnel", "pic": "Kiên", "progress": "", "priority": "2 - High", "status": "", "deadline": "10/23/2026", "description": "Dựng tunnel thử, gọi từ máy khác bằng openai SDK: generate mỗi preset, edit, job enhance 3 phút (không 524), 30 request đồng thời. Ghi kết quả vào tests/e2e/REPORT.md. Cắt bản v0.1-alpha.", "sprint": "3 - Evaluating And Improve", "type": "Task", "difficulty": "3 - Moderate", "milestone": "M2"},
+    {"name": "Làm op refine và upscale", "pic": "Kiên", "progress": "", "priority": "1 - Urgent", "status": "", "deadline": "10/27/2026", "description": "refine turbo (sigma nodes) và base (denoise); upscale esrgan x2/x4 + Lanczos về đúng WxH, nearest cho pixel art, lanczos thuần. Kết quả khớp tools/refine.py và tools/upscale.py.", "sprint": "2 - Cooking", "type": "User Story", "difficulty": "3 - Moderate", "milestone": "M3"},
+    {"name": "Làm op outpaint tổng hợp", "pic": "Kiên", "progress": "", "priority": "2 - High", "status": "", "deadline": "10/29/2026", "description": "Port tools/outpaint.py: canvas gợi ý, edit, upscale, refine, paste-back pixel gốc có feather; chạy trong một job, các bước con là sub-op trong cùng executor.", "sprint": "2 - Cooking", "type": "User Story", "difficulty": "2 - Hard", "milestone": "M3"},
+    {"name": "Làm op CPU: pixelize, remove-bg, compose, fidelity", "pic": "Kiên", "progress": "", "priority": "2 - High", "status": "", "deadline": "10/29/2026", "description": "Bọc pixelart/pixelize.py, compose_screenshot.py, model_fidelity.py thành op chạy trong CpuPool, không vào queue GPU; /v1/tools/{op} đồng bộ.", "sprint": "2 - Cooking", "type": "User Story", "difficulty": "4 - Easy", "milestone": "M3"},
+    {"name": "Dựng pipeline executor nhiều op", "pic": "Kiên", "progress": "", "priority": "1 - Urgent", "status": "", "deadline": "11/2/2026", "description": "Resolve $inputs, $prev, $step[i]; n>1 map qua op sau; outputs chọn bước; cost cộng dồn; op pixelize đứng ngay sau generate được gộp vào cùng workflow ComfyUI.", "sprint": "2 - Cooking", "type": "User Story", "difficulty": "2 - Hard", "milestone": "M3"},
+    {"name": "Làm SSE sự kiện job và stream/partial_images kiểu OpenAI", "pic": "Kiên", "progress": "", "priority": "2 - High", "status": "", "deadline": "11/3/2026", "description": "/v1/jobs/{id}/events với Last-Event-ID; ping 15 s; preview latent2rgb; stream:true ở images API phát image_generation.partial_image/completed.", "sprint": "2 - Cooking", "type": "User Story", "difficulty": "3 - Moderate", "milestone": "M3"},
+    {"name": "Làm webhook, retention và URL có ký", "pic": "Kiên", "progress": "", "priority": "3 - Normal", "status": "", "deadline": "11/4/2026", "description": "Webhook ký HMAC, retry 3 lần backoff; task dọn file hết hạn và blob refcount 0 mỗi 10 phút; hạn mức ổ đĩa và 507; URL ?exp&sig dùng public_url.", "sprint": "2 - Cooking", "type": "User Story", "difficulty": "3 - Moderate", "milestone": "M3"},
+    {"name": "Làm /mcp và chuyển gen.py thành client API", "pic": "Kiên", "progress": "", "priority": "3 - Normal", "status": "", "deadline": "11/5/2026", "description": "MCP Streamable HTTP với 8 tool; gen.py và tools/*.py gọi API (giữ nguyên flag trong README). Xong khi Claude Code gọi được generate_image và các lệnh README chạy qua API. Cắt v0.2.", "sprint": "2 - Cooking", "type": "User Story", "difficulty": "3 - Moderate", "milestone": "M3"},
+    {"name": "Làm user, session, argon2id, CSRF và khoá đăng nhập", "pic": "Kiên", "progress": "", "priority": "1 - Urgent", "status": "", "deadline": "11/9/2026", "description": "Login bằng username hoặc email, cookie HttpOnly/Secure/SameSite, CSRF header + kiểm Origin, khoá 15 phút sau 5 lần sai, role admin/operator/viewer, qis admin create/reset-password, AuthProvider interface.", "sprint": "2 - Cooking", "type": "User Story", "difficulty": "3 - Moderate", "milestone": "M4"},
+    {"name": "Làm runtime settings có schema và áp dụng nóng", "pic": "Kiên", "progress": "", "priority": "1 - Urgent", "status": "", "deadline": "11/10/2026", "description": "Schema Pydantic cho queue.*, scheduler.*, cpu.*, api.*, inputs.*, storage.*, job.*; scope node/cluster; thay đổi phát sự kiện để scheduler/admission đọc lại ngay; export JSON Schema cho form.", "sprint": "2 - Cooking", "type": "User Story", "difficulty": "3 - Moderate", "milestone": "M4"},
+    {"name": "Làm admin API cho users, keys, jobs, models, system", "pic": "Kiên", "progress": "", "priority": "2 - High", "status": "", "deadline": "11/11/2026", "description": "/admin/api/* theo DESIGN §6.9 kèm kiểm role; system: restart ComfyUI, tail log, version, backup DB; models: liệt kê, tải (progress), xoá, đổi profile, benchmark.", "sprint": "2 - Cooking", "type": "User Story", "difficulty": "2 - Hard", "milestone": "M4"},
+    {"name": "Làm SSE admin, đọc NVML và thống kê theo phút", "pic": "Kiên", "progress": "", "priority": "2 - High", "status": "", "deadline": "11/12/2026", "description": "/admin/api/events phát trạng thái node, queue, job, GPU (pynvml 2 s khi có người xem, 30 s khi không); ghi stats_minute cho biểu đồ 24 h.", "sprint": "2 - Cooking", "type": "Task", "difficulty": "3 - Moderate", "milestone": "M4"},
+    {"name": "Ghi audit log cho thao tác quản trị", "pic": "Kiên", "progress": "", "priority": "3 - Normal", "status": "", "deadline": "11/12/2026", "description": "Ghi đăng nhập, tạo/thu hồi key, đổi setting, đổi profile, huỷ job người khác kèm actor, IP; API lọc theo người và ngày.", "sprint": "2 - Cooking", "type": "Task", "difficulty": "4 - Easy", "milestone": "M4"},
+    {"name": "Dựng khung SPA: Vite, router, layout, theme, trang đăng nhập", "pic": "Kiên", "progress": "", "priority": "1 - Urgent", "status": "", "deadline": "11/16/2026", "description": "React + TS + Tailwind + shadcn/ui, TanStack Query/Router, client API có CSRF, layout sidebar, sáng/tối, login và buộc đổi password lần đầu; gateway serve web/dist tại /admin.", "sprint": "2 - Cooking", "type": "Task", "difficulty": "3 - Moderate", "milestone": "M5"},
+    {"name": "Làm trang Tổng quan và Jobs", "pic": "Kiên", "progress": "", "priority": "1 - Urgent", "status": "", "deadline": "11/18/2026", "description": "Thẻ GPU/VRAM/nhiệt độ, queue, job đang chạy kèm preview realtime, biểu đồ 24 h; bảng Jobs lọc, chi tiết timeline, xem output, huỷ, retry, tải.", "sprint": "2 - Cooking", "type": "User Story", "difficulty": "3 - Moderate", "milestone": "M5"},
+    {"name": "Làm trang Playground", "pic": "Kiên", "progress": "", "priority": "2 - High", "status": "", "deadline": "11/20/2026", "description": "Form theo preset/op, kéo thả ref, xem progress + preview, gallery kết quả, nút copy curl và Python tương đương với request vừa chạy.", "sprint": "2 - Cooking", "type": "User Story", "difficulty": "3 - Moderate", "milestone": "M5"},
+    {"name": "Làm trang Queue & Limits và Settings từ schema", "pic": "Kiên", "progress": "", "priority": "2 - High", "status": "", "deadline": "11/23/2026", "description": "Form sinh từ JSON Schema, validate, nhãn restart required, hiển thị trạng thái tunnel và public URL. Xong khi đổi max_pending trên web có hiệu lực ngay.", "sprint": "2 - Cooking", "type": "User Story", "difficulty": "3 - Moderate", "milestone": "M5"},
+    {"name": "Làm trang Models, API Keys và Users", "pic": "Kiên", "progress": "", "priority": "2 - High", "status": "", "deadline": "11/25/2026", "description": "Models: danh sách, license/commercial_ok, tải có progress, đổi profile, benchmark. Keys: tạo (hiện 1 lần), quota, thu hồi, usage. Users: tạo, khoá, reset, role.", "sprint": "2 - Cooking", "type": "User Story", "difficulty": "3 - Moderate", "milestone": "M5"},
+    {"name": "Làm trang Logs, System và test Playwright", "pic": "Kiên", "progress": "", "priority": "3 - Normal", "status": "", "deadline": "11/27/2026", "description": "Tail log có lọc, restart, update, backup; smoke test Playwright luồng login → setting → key → playground → huỷ job ở 1280px và 390px. Cắt v0.3-beta.", "sprint": "3 - Evaluating And Improve", "type": "Task", "difficulty": "3 - Moderate", "milestone": "M5"},
+    {"name": "Viết hardware.py và logic chọn tier T0–T5", "pic": "Kiên", "progress": "", "priority": "1 - Urgent", "status": "", "deadline": "11/30/2026", "description": "Đọc nvidia-smi (tên, VRAM, driver, compute cap), RAM, CPU, ổ trống trên Windows/Linux; không dùng AdapterRAM; trả tier + cảnh báo (RAM < 32 GB, driver cũ). Dùng chung cho installer, doctor, dashboard.", "sprint": "2 - Cooking", "type": "Task", "difficulty": "3 - Moderate", "milestone": "M6"},
+    {"name": "Bake Viggle Q8/BF16 và viết manifest models.yaml", "pic": "Kiên", "progress": "", "priority": "1 - Urgent", "status": "", "deadline": "12/2/2026", "description": "Bake bằng tools/merge_lora.py + sd-cli; đẩy lên repo HF (private nếu license chưa rõ); manifest có url, sha256, bytes, min_vram, license, commercial_ok và profile T0–T5.", "sprint": "2 - Cooking", "type": "Task", "difficulty": "3 - Moderate", "milestone": "M6"},
+    {"name": "Chạy benchmark từng tier trên GPU cloud", "pic": "Kiên", "progress": "", "priority": "2 - High", "status": "", "deadline": "12/3/2026", "description": "Thuê GPU 12/16/24 GB theo giờ, chạy qis benchmark cho mỗi profile, chốt reserve_vram, batch và thời gian/ảnh hiển thị trong installer. Ghi vào docs/BENCHMARK.md.", "sprint": "3 - Evaluating And Improve", "type": "Task", "difficulty": "3 - Moderate", "milestone": "M6"},
+    {"name": "Viết install.ps1: preflight, uv, ComfyUI pin, tải model", "pic": "Kiên", "progress": "", "priority": "1 - Urgent", "status": "", "deadline": "12/7/2026", "description": "Chạy được qua irm|iex và scriptblock có tham số; prompt chọn profile; uv + Python 3.12 + torch cu128/cu126; ComfyUI + node pin; tải model resume + sha256 + dùng lại file có sẵn; idempotent.", "sprint": "2 - Cooking", "type": "User Story", "difficulty": "2 - Hard", "milestone": "M6"},
+    {"name": "Đăng ký WinSW service, cloudflared và benchmark sau cài", "pic": "Kiên", "progress": "", "priority": "1 - Urgent", "status": "", "deadline": "12/9/2026", "description": "Service qis-gateway tự khởi động và restart; --TunnelToken cài cloudflared service; đợi readyz, chạy benchmark, đặt max_pending; in tổng kết URL, admin, lệnh test.", "sprint": "2 - Cooking", "type": "User Story", "difficulty": "3 - Moderate", "milestone": "M6"},
+    {"name": "Làm CLI qis và lệnh doctor", "pic": "Kiên", "progress": "", "priority": "2 - High", "status": "", "deadline": "12/10/2026", "description": "status, start/stop/restart, logs, doctor (driver, torch thấy GPU, node bắt buộc, sha256 model, ổ đĩa, port, cloudflared), benchmark, models, profile, admin, key, db backup, uninstall. Kiểm thử trên VM Windows sạch.", "sprint": "2 - Cooking", "type": "Task", "difficulty": "3 - Moderate", "milestone": "M6"},
+    {"name": "Viết install.sh và unit systemd cho Linux", "pic": "Kiên", "progress": "", "priority": "1 - Urgent", "status": "", "deadline": "12/14/2026", "description": "Đọc prompt từ /dev/tty, chế độ --yes khi không có tty, user qis, systemd hardening, cloudflared; kiểm thử trên Ubuntu 22.04 và 24.04 sạch có GPU.", "sprint": "2 - Cooking", "type": "User Story", "difficulty": "3 - Moderate", "milestone": "M7"},
+    {"name": "Làm qis update có rollback và backup DB", "pic": "Kiên", "progress": "", "priority": "2 - High", "status": "", "deadline": "12/16/2026", "description": "Tải release, kiểm hash, giải nén app.new, backup DB, migration, đổi thư mục nguyên tử, restart; rollback nếu readyz không lên trong 3 phút. Test cả nhánh thành công và rollback.", "sprint": "2 - Cooking", "type": "User Story", "difficulty": "2 - Hard", "milestone": "M7"},
+    {"name": "Dựng CI build release và host script cài đặt", "pic": "Kiên", "progress": "", "priority": "2 - High", "status": "", "deadline": "12/17/2026", "description": "GitHub Actions: build web, đóng gói server+engine+install, SHA-256 (+ minisign), tạo release theo tag; publish install.ps1/install.sh lên Cloudflare Pages/R2 ở get.<domain>.", "sprint": "2 - Cooking", "type": "Task", "difficulty": "3 - Moderate", "milestone": "M7"},
+    {"name": "Soát bảo mật và load test trước v1.0", "pic": "Kiên", "progress": "", "priority": "2 - High", "status": "", "deadline": "12/18/2026", "description": "Đối chiếu DESIGN §11 (ComfyUI loopback, bomb, SSRF, traversal, header giả, key trong log); load test 100 request đồng thời 30 phút trên máy 6 GB; không rò bộ nhớ, không job mất.", "sprint": "3 - Evaluating And Improve", "type": "Task", "difficulty": "3 - Moderate", "milestone": "M7"},
+    {"name": "Viết docs/API.md, docs/OPERATIONS.md và phát hành v1.0", "pic": "Kiên", "progress": "", "priority": "3 - Normal", "status": "", "deadline": "12/22/2026", "description": "API: ví dụ OpenAI SDK, curl, jobs, pipeline, SSE, lỗi. Operations: cài, tunnel + Access policy, cập nhật, sao lưu, xử lý sự cố. Cập nhật README; tag v1.0.0.", "sprint": "3 - Evaluating And Improve", "type": "Task", "difficulty": "4 - Easy", "milestone": "M7"},
+    {"name": "Thiết kế mesh nhiều node (docs/MESH.md)", "pic": "Kiên", "progress": "", "priority": "3 - Normal", "status": "", "deadline": "", "description": "Chọn overlay mạng, discovery, định tuyến theo ETA + affinity, peer token ed25519, đồng bộ scope cluster (user/key/preset), RemoteNodeExecutor. Chưa xếp lịch — bắt đầu sau v1.0.", "sprint": "1 - Research And Plan", "type": "User Story", "difficulty": "1 - Extremely Hard", "milestone": "Deferred"},
+    {"name": "Gộp batch nhiều job cùng prompt trên GPU lớn", "pic": "Kiên", "progress": "", "priority": "4 - Low", "status": "", "deadline": "", "description": "Gộp job cùng preset/prompt/size khác seed thành batch_size k khi VRAM ≥ 16 GB; đo throughput trước khi bật mặc định.", "sprint": "1 - Research And Plan", "type": "User Story", "difficulty": "3 - Moderate", "milestone": "Deferred"},
+    {"name": "Đăng nhập SSO qua OIDC hoặc Cloudflare Access JWT", "pic": "Kiên", "progress": "", "priority": "4 - Low", "status": "", "deadline": "", "description": "Cài AuthProvider cho Google Workspace OIDC và tin Cf-Access-Jwt-Assertion; ánh xạ email sang role.", "sprint": "1 - Research And Plan", "type": "User Story", "difficulty": "3 - Moderate", "milestone": "Deferred"},
+    {"name": "Hỗ trợ lưu trữ S3/R2 cho BlobStore", "pic": "Kiên", "progress": "", "priority": "4 - Low", "status": "", "deadline": "", "description": "Backend BlobStore cho S3-compatible (Cloudflare R2), URL presigned; cần cho mesh để chia sẻ file giữa node.", "sprint": "1 - Research And Plan", "type": "User Story", "difficulty": "3 - Moderate", "milestone": "Deferred"},
+    {"name": "Hỗ trợ nhiều GPU trên một máy", "pic": "Kiên", "progress": "", "priority": "4 - Low", "status": "", "deadline": "", "description": "Một ComfyUI cho mỗi GPU (--cuda-device N), mỗi GPU một LocalComfyExecutor, dispatcher chọn executor rảnh.", "sprint": "1 - Research And Plan", "type": "User Story", "difficulty": "3 - Moderate", "milestone": "Deferred"}
+  ]
+}
