@@ -1,0 +1,129 @@
+# Model manifest: what the installer / dashboard can download, and which files each VRAM tier uses.
+# sha256 = the Hugging Face LFS oid (or the published hash for GitHub releases). Sizes in bytes.
+# License: every Qwen-Image 2.1 derivative is under the Qwen Research License (non-commercial);
+# Real-ESRGAN is BSD-3 (commercial use allowed).
+version: 1
+models:
+  - id: turbo-q4km
+    role: turbo
+    file: qwen_image_2.1_turbo_Q4_K_M.gguf
+    dir: diffusion_models
+    url: https://huggingface.co/Abiray/Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-GGUF/resolve/main/qwen_image_2.1_turbo_Q4_K_M.gguf
+    sha256: a64ecf5750322b62719377c98776ce699bd1dc6ab8c71928abe16bebd2d1eb9f
+    bytes: 4189343904
+    min_vram_gb: 6
+    license: qwen-research
+    commercial_ok: false
+    note: "Qwen-Image 2.1 + Viggle turbo v0.2.1 (LoRA baked in), 4-8 step"
+  - id: turbo-q6k
+    role: turbo
+    file: qwen_image_2.1_turbo_Q6_K.gguf
+    dir: diffusion_models
+    url: https://huggingface.co/Abiray/Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-GGUF/resolve/main/qwen_image_2.1_turbo_Q6_K.gguf
+    sha256: cb907d949c1f594a9ab9f310197185fb2ff59f0ffabcbb66c2d27b3e22008697
+    bytes: 5876578464
+    min_vram_gb: 8
+    license: qwen-research
+    commercial_ok: false
+  - id: turbo-q8
+    role: turbo
+    file: qwen_image_2.1_turbo_Q8_0.gguf
+    dir: diffusion_models
+    url: https://huggingface.co/Abiray/Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-GGUF/resolve/main/qwen_image_2.1_turbo_Q8_0.gguf
+    sha256: 4c261d6e7206ace6d22109a71770c9b0cd6efc231454402680f50cd5c680958a
+    bytes: 7591579808
+    min_vram_gb: 10
+    license: qwen-research
+    commercial_ok: false
+  - id: base-q4km
+    role: base
+    file: qwen-image-2.1-Q4_K_M.gguf
+    dir: diffusion_models
+    url: https://huggingface.co/unsloth/Qwen-Image-2.1-GGUF/resolve/main/qwen-image-2.1-Q4_K_M.gguf
+    sha256: 631d532e7ca71e8d90a87c71d3699761a812039d22e3370e87498d87754660fe
+    bytes: 4199565024
+    min_vram_gb: 6
+    license: qwen-research
+    commercial_ok: false
+    note: "original model (no turbo), 10+ steps"
+  - id: base-q8
+    role: base_q8
+    file: qwen-image-2.1-Q8_0.gguf
+    dir: diffusion_models
+    url: https://huggingface.co/unsloth/Qwen-Image-2.1-GGUF/resolve/main/qwen-image-2.1-Q8_0.gguf
+    sha256: c0ed4b2ffd56cbe9c3df1e4a4098045256484ebe94ba5a7e4338d35ec046baa5
+    bytes: 7640860384
+    min_vram_gb: 10
+    license: qwen-research
+    commercial_ok: false
+  - id: encoder-int8
+    role: clip
+    file: qwen3vl_8b_int8_convrot.safetensors
+    dir: text_encoders
+    url: https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/text_encoders/qwen3vl_8b_int8_convrot.safetensors
+    sha256: 8bfd0f6e12abf2d2d697ecc888e5e90b0d6741d6708f05799f53afa560452e8f
+    bytes: 9350798360
+    min_vram_gb: 0
+    license: qwen-research
+    commercial_ok: false
+    note: "Qwen3-VL 8B text encoder, also runs the prompt enhancer"
+  - id: vae
+    role: vae
+    file: qwen_image_2.1_vae_bf16.safetensors
+    dir: vae
+    url: https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/vae/qwen_image_2.1_vae_bf16.safetensors
+    sha256: bb21f7473051e1ac368515dd3f2e15cd44d7a11748ee8823e1ddca3e4876b7c9
+    bytes: 675509688
+    min_vram_gb: 0
+    license: qwen-research
+    commercial_ok: false
+  - id: realesrgan-x2
+    role: upscaler
+    file: RealESRGAN_x2plus.pth
+    dir: upscale_models
+    url: https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth
+    sha256: 49fafd45f8fd7aa8d31ab2a22d14d91b536c34494a5cfe31eb5d89c2fa266abb
+    bytes: 67061725
+    min_vram_gb: 0
+    license: bsd-3-clause
+    commercial_ok: true
+  - id: realesrgan-x4
+    role: upscaler
+    file: RealESRGAN_x4plus.pth
+    dir: upscale_models
+    url: https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth
+    sha256: 4fa0d38905f75ac06eb49a7951b426670021be3018265fd191d2125df9d682f1
+    bytes: 67040989
+    min_vram_gb: 0
+    license: bsd-3-clause
+    commercial_ok: true
+
+# Tiers pick models by VRAM (qis.engine.hardware.choose_tier). `quality` swaps in the larger turbo when it fits.
+profiles:
+  T0:
+    title: "Tools only (< 6 GB / no NVIDIA GPU)"
+    models: [realesrgan-x2, realesrgan-x4]
+    comfy: {reserve_vram: 0}
+  T1:
+    title: "6-8 GB: turbo Q4_K_M + base Q4_K_M"
+    models: [turbo-q4km, base-q4km, encoder-int8, vae, realesrgan-x2, realesrgan-x4]
+    quality: {turbo: turbo-q6k}
+    fast: {drop: [base-q4km]}
+    comfy: {reserve_vram: 1.2}
+  T2:
+    title: "10-12 GB: turbo Q8_0 + base Q4_K_M"
+    models: [turbo-q8, base-q4km, encoder-int8, vae, realesrgan-x2, realesrgan-x4]
+    fast: {turbo: turbo-q6k}
+    comfy: {reserve_vram: 1.0}
+  T3:
+    title: "16 GB: turbo Q8_0 + base Q8_0"
+    models: [turbo-q8, base-q4km, base-q8, encoder-int8, vae, realesrgan-x2, realesrgan-x4]
+    comfy: {reserve_vram: 1.0}
+  T4:
+    title: "24 GB: Q8_0, text encoder resident in VRAM"
+    models: [turbo-q8, base-q4km, base-q8, encoder-int8, vae, realesrgan-x2, realesrgan-x4]
+    comfy: {reserve_vram: 1.5}
+  T5:
+    title: ">= 32 GB: Q8_0 everywhere, room for batching"
+    models: [turbo-q8, base-q4km, base-q8, encoder-int8, vae, realesrgan-x2, realesrgan-x4]
+    comfy: {reserve_vram: 2.0}

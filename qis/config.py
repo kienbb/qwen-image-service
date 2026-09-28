@@ -45,6 +45,7 @@ class SecurityCfg(BaseModel):
 
 class ProfileCfg(BaseModel):
     tier: str = "T1"
+    model_ids: list[str] = Field(default_factory=list)
 
 
 class ModelsCfg(BaseModel):
