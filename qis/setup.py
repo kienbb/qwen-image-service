@@ -279,6 +279,16 @@ WantedBy=multi-user.target
         subprocess.run(["systemctl", "restart", SERVICE], check=True)
 
 
+def service_installed(root: Path) -> bool:
+    if IS_WIN:
+        exe = root / "bin" / "qis-service.exe"
+        if not exe.exists():
+            return False
+        st = subprocess.run([str(exe), "status"], capture_output=True, text=True)
+        return st.returncode == 0 and "NonExistent" not in st.stdout
+    return Path(f"/etc/systemd/system/{SERVICE}.service").exists()
+
+
 def service_cmd(root: Path, action: str) -> int:
     if IS_WIN:
         exe = root / "bin" / "qis-service.exe"
@@ -490,15 +500,21 @@ def cmd_update(a) -> None:
     DB(cfg.data_dir / "qis.db").backup(backup)
     say(f"backup: {backup}")
 
+    has_service = service_installed(root)
+
     def apply(ref: str) -> None:
         run(git, "checkout", "--force", ref)
         pip_install(root, ["-e", str(app)])
         install_comfy(root)
         DB(cfg.data_dir / "qis.db").migrate()
-        service_cmd(root, "restart")
+        if has_service:
+            service_cmd(root, "restart")
     try:
         say(f"updating {old[:10]} -> {target}")
         apply(target)
+        if not has_service:
+            say(f"update installed ({run(git, 'rev-parse', '--short', 'HEAD')}); no service registered: restart `qis serve` yourself")
+            return
         if not wait_ready(cfg.server.port, 180):
             raise RuntimeError("node not ready 3 minutes after the update")
         say("update done")
