@@ -49,6 +49,11 @@ def create_app(cfg: Config, node: Node | None = None) -> FastAPI:
     @app.middleware("http")
     async def request_id(request: Request, call_next):
         rid = request.headers.get("x-request-id") or uuid.uuid4().hex[:16]
+        length = request.headers.get("content-length")
+        limit = node.settings.current.api.max_body_mb * 1024 * 1024
+        if length and length.isdigit() and int(length) > limit:
+            from .api.common import err
+            return err(413, f"request body is larger than {limit // 1024 // 1024} MB", "body_too_large")
         t = time.monotonic()
         response = await call_next(request)
         response.headers["X-Request-Id"] = rid

@@ -1,12 +1,55 @@
-# Qwen-Image 2.1 → pixel art asset cho game (RTX 3050 6 GB)
+# Qwen Image Service: Qwen-Image 2.1 thành một node API cài một lệnh
 
-Công cụ chạy local để sinh sprite retro 16/32-bit (tối đa 256×256) bằng Qwen-Image 2.1 GGUF trên ComfyUI.
-Hỗ trợ text → image, sửa ảnh (edit) và ghép nhiều ảnh tham chiếu (multi-reference).
+Service chạy trên máy NVIDIA, dùng Qwen-Image 2.1 (GGUF, Viggle turbo) qua ComfyUI. Gồm:
+- **API tương thích OpenAI**: `/v1/images/generations`, `/v1/images/edits`, `/v1/models`, gọi được bằng OpenAI SDK.
+- **Job/pipeline API**: generate/edit, enhance, refine, upscale (Real-ESRGAN), outpaint, pixelize, remove-bg, compose, fidelity; theo dõi tiến độ qua SSE, có webhook.
+- **MCP endpoint** cho Claude và các agent khác.
+- **Hàng đợi** có admission control (trả 429 khi đầy), ưu tiên, chia lượt công bằng giữa các key, tự retry khi OOM hoặc crash, không mất job khi restart.
+- **Dashboard web** `/admin`: đăng nhập, chỉnh setting có hiệu lực ngay, quản lý key, user và model, playground.
+- **Installer một lệnh** (`irm | iex` trên Windows, `curl | bash` trên Linux): tự detect GPU và gợi ý bộ model phù hợp (tier T0–T5), đăng ký service, tích hợp Cloudflare Tunnel.
 
-## Dùng nhanh
+Tài liệu: [DESIGN](docs/DESIGN.md) · [API](docs/API.md) · [OPERATIONS](docs/OPERATIONS.md) · [PRD](docs/PRD.md) · [ROADMAP](docs/ROADMAP.md) · [TASKS](docs/TASKS.md)
 
-1. Chạy `start_comfyui.bat` và đợi đến khi log hiện `To see the GUI go to: http://127.0.0.1:8188`.
-2. Mở terminal khác:
+## Cài đặt
+
+```powershell
+# Windows (PowerShell chạy bằng quyền Administrator)
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/kienbb/qwen-image-service/master/install/install.ps1))) -GithubToken <PAT>
+```
+```bash
+# Linux
+curl -fsSL https://raw.githubusercontent.com/kienbb/qwen-image-service/master/install/install.sh | sudo bash -s -- --github-token <PAT>
+```
+Repo đang để private nên installer cần token (`<PAT>`) để clone. Link `raw.githubusercontent.com` của repo private cũng phải kèm token; cách đơn giản hơn là tải file script về máy trước rồi chạy. Các tuỳ chọn khác xem [OPERATIONS §1](docs/OPERATIONS.md).
+
+Gọi API sau khi cài:
+```python
+from openai import OpenAI
+client = OpenAI(base_url="http://127.0.0.1:8080/v1", api_key="sk-qis-...")
+img = client.images.generate(model="pixelart-16bit-64", prompt="a knight with a blue cape")
+```
+
+## Phát triển
+
+```bash
+uv venv --python 3.13 && uv pip install -e ".[dev]"
+uv run pytest                         # golden workflow, API trên fake ComfyUI, admin, MCP
+uv run qis key create --config .qis-dev/config.toml --name dev
+uv run qis serve --config .qis-dev/config.toml --attach     # dùng ComfyUI đang chạy sẵn ở :8188
+cd web && npm install && npm run dev  # dashboard (proxy tới :8080)
+```
+
+## CLI cũ (`gen.py`, `tools/`)
+
+`gen.py` và `tools/{upscale,refine,outpaint}.py` giờ là client của service: giữ nguyên các flag nhưng gọi API thay vì gọi thẳng ComfyUI. Chúng đọc 2 biến môi trường:
+- `QIS_URL`: mặc định `http://127.0.0.1:8080`.
+- `QIS_API_KEY`: API key.
+
+Kết quả vẫn nằm ở `output/<tên>/`, với tên file `raw_<i>.png`, `sprite_<grid>px_<i>.png`, `preview_<i>.png`.
+
+## Ghi chú về chất lượng và prompt (từ bản CLI)
+
+Service phải đang chạy (service đã cài, hoặc `uv run qis serve`) và biến môi trường `QIS_API_KEY` đã được đặt. Sau đó:
 
 ```bash
 python gen.py "a knight with a blue cape and a sword"                       # text -> image, turbo 5 step
@@ -93,15 +136,16 @@ tools/sdcpp/sd-cli.exe -M convert -m downloads/merged_f32.safetensors -o ComfyUI
 ## Cấu trúc
 
 ```
-gen.py                  CLI: dựng workflow ComfyUI qua API (text2img / edit / multi-ref + pixel hoá)
-pixelart/               custom node "Pixel Art (Retro 16/32-bit)" + pixelize.py (crop, downscale, palette, tách nền)
-prompts/                system prompt chính thức của rewriter Qwen-Image 2.1 (T2I / edit), dùng cho --enhance
-tools/merge_lora.py     bake LoRA vào trọng số bf16 -> f32 safetensors
-tools/sdcpp/            stable-diffusion.cpp (dùng để quantize sang GGUF)
-start_comfyui.bat       khởi động ComfyUI (output -> ./output)
-workflow_turbo_*.json   workflow API để kéo vào ComfyUI UI
-ComfyUI_windows_portable/  ComfyUI 0.37 + ComfyUI-GGUF (leejet) + viggle_turbo.py (node Viggle Turbo Sigmas) + models:
-  diffusion_models/qwen-image-2.1-viggle-Q4_K_M.gguf   turbo (mặc định)
-  diffusion_models/qwen-image-2.1-Q4_K_M.gguf          model gốc (--mode base)
-  text_encoders/qwen3vl_8b_int8_convrot.safetensors, vae/qwen_image_2.1_vae_bf16.safetensors
+qis/                    service (gateway FastAPI + engine)
+  engine/workflows.py   dựng workflow ComfyUI (golden test so với gen.py cũ)
+  engine/ops.py         các op của pipeline         engine/comfy/   client HTTP+WS và supervisor ComfyUI
+  scheduler.py          hàng đợi: admission, dispatcher, retry, phục hồi sau restart
+  api/                  OpenAI, jobs/files/tools, admin, MCP, health
+  comfy_nodes/          custom node đi kèm (pixelart_retro, viggle_turbo)
+  data/                 presets.yaml, models.yaml (manifest + tier), comfy.lock.json, system prompt của enhancer
+  setup.py doctor.py    installer (Python), service, cập nhật
+web/                    dashboard React (build ra qis/web/dist)
+install/                install.ps1, install.sh
+gen.py, tools/          CLI (client của API) + merge_lora.py (bake LoRA → GGUF)
+tests/                  pytest (fake ComfyUI, golden workflow)
 ```

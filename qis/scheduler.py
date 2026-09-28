@@ -12,6 +12,7 @@ import logging
 import time
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
+from urllib.parse import urlparse
 
 import httpx
 from pydantic import ValidationError
@@ -480,6 +481,11 @@ class JobService:
                 (minute, int(status == "succeeded"), int(status == "failed"), gpu_s, len(self.queued), images))
 
     async def _webhook(self, job_id: str, url: str) -> None:
+        if not self.settings.current.api.allow_private_webhooks:
+            host = urlparse(url).hostname or ""
+            if not await asyncio.to_thread(public_host, host):
+                log.warning("webhook %s blocked: private or unresolvable address (api.allow_private_webhooks)", url)
+                return
         job = self.get(job_id)
         body = json.dumps({"type": f"job.{job['status']}", "job": job}, default=str).encode()
         secret = self.storage.secret
@@ -494,6 +500,21 @@ class JobService:
             except httpx.HTTPError as e:
                 log.warning("webhook %s failed: %s", url, e)
             await asyncio.sleep(2 * 4 ** attempt)
+
+
+def public_host(host: str) -> bool:
+    """True when every address the host resolves to is public (webhook SSRF guard)."""
+    import ipaddress
+    import socket
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except OSError:
+        return False
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0])
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast or ip.is_unspecified:
+            return False
+    return bool(infos)
 
 
 def is_file_id(v: str) -> bool:

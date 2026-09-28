@@ -43,6 +43,8 @@ class ApiS(BaseModel):
     sync_max_s: int = Field(90, ge=10, description="Khi tắt keepalive: job ước tính dài hơn thì trả 400 use_async")
     keepalive_interval_s: int = Field(15, ge=5, le=90)
     max_n: int = Field(8, ge=1, le=16)
+    allow_private_webhooks: bool = Field(False, description="Cho phép webhook tới IP nội bộ / localhost (mặc định chặn, chống SSRF)")
+    max_body_mb: int = Field(64, ge=1, le=1024, description="Kích thước tối đa của một request body")
 
 
 class InputsS(BaseModel):

@@ -105,6 +105,7 @@ def test_webhook_signed(gw):
             pass
     port = free_port()
     srv = HTTPServer(("127.0.0.1", port), H)
+    gw.node.settings.update("api", {"allow_private_webhooks": True})
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     try:
         c = gw.client(gw.key())
@@ -149,3 +150,12 @@ def test_gen_py_client(gw, tmp_path):
     wf = tmp_path / "wf.json"
     subprocess.run([sys.executable, str(ROOT / "gen.py"), "--dump-workflow", str(wf)], check=True, timeout=60)
     assert "UnetLoaderGGUF" in wf.read_text()
+
+
+def test_webhook_private_blocked_and_body_limit(gw):
+    from qis.scheduler import public_host
+    assert not public_host("127.0.0.1") and not public_host("10.0.0.5") and not public_host("localhost")
+    c = gw.client(gw.key())
+    gw.node.settings.update("api", {"max_body_mb": 1})
+    r = c.post("/v1/files", files={"file": ("big.png", b"0" * (2 * 1024 * 1024), "image/png")})
+    assert r.status_code == 413 and r.json()["error"]["code"] == "body_too_large"

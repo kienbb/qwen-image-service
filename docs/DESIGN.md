@@ -752,3 +752,21 @@ Xem §15. Sẽ có tài liệu `docs/MESH.md` riêng trước khi code.
 | R7 | Phân phối repo private cho `irm \| iex` | Installer cần token | Host gói release trên R2 (URL có ký hoặc public), hoặc cho repo public phần installer |
 | Q1 | Tên sản phẩm và domain cho `get.<domain>` | – | Cần chốt trước P4 |
 | Q2 | Có cần API key dùng được trên toàn mesh ngay từ P5 không? | Quyết định thiết kế đồng bộ `cluster` | Bàn khi thiết kế P5 |
+
+---
+
+## 20. Ghi chú triển khai (các điểm khác bản thiết kế v1)
+
+Bản cài đặt thực tế (M0–M7) có vài chỗ lệch khỏi bản thiết kế. Thiết kế vẫn giữ nguyên, bảng dưới ghi lại lựa chọn cuối cùng và lý do:
+
+| Mục | Thiết kế v1 | Thực tế | Lý do |
+|---|---|---|---|
+| Cấu trúc repo (§16) | `server/`, `engine/` riêng | Một package `qis/` (`qis/api`, `qis/engine`, `qis/scheduler.py`, …) | Một wheel duy nhất, import gọn, cài bằng `pip install -e` |
+| DB (§2.1) | SQLAlchemy + Alembic | `sqlite3` chuẩn + danh sách migration trong code (`PRAGMA user_version`) | Schema nhỏ, không cần ORM; bớt phụ thuộc |
+| Python | 3.12 | 3.13 (giống bản ComfyUI portable đã chạy ổn) | Tránh sai khác với bản tham chiếu |
+| PyTorch | cu128 / cu126 | cu130 nếu driver ≥ 580, cu128 nếu driver ≥ 570, cu126 cho Pascal | Bản tham chiếu chạy torch 2.13 cu130 |
+| Model (§12.4–12.5) | Tự bake Viggle rồi host HF riêng | Manifest dùng nguồn công khai: Viggle v0.2.1 GGUF (Abiray), base (unsloth), encoder/VAE (Comfy-Org), Real-ESRGAN (GitHub). File tự bake vẫn dùng được và được hiện là "local" | Không phải phân phối lại weights; sha256 lấy từ LFS oid |
+| Mô hình op | Pixelize gộp vào workflow ComfyUI | Pixelize chạy ở CPU pool của gateway (cùng code `pixelize.py`) | Không giữ GPU trong lúc làm việc CPU; dùng lại được cho `/v1/tools/pixelize` |
+| MCP (§6.8) | – | Tự cài JSON-RPC Streamable HTTP (không dùng MCP SDK); SSE có progress và ping | Ít phụ thuộc; qua được giới hạn 100 s của Cloudflare |
+| Mask trong `/images/edits` | Inpaint | Chưa hỗ trợ (trả 400 kèm hướng dẫn) | Chưa có op inpaint; để làm sau |
+| Admission | Theo tổng ETA | Thêm: queue rỗng thì luôn nhận job (miễn là dưới `max_cost_s`) | Job lớn không bị kẹt khi node rảnh |
