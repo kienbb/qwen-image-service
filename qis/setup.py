@@ -476,26 +476,6 @@ def cmd_setup(a) -> None:
 
 
 # ------------------------------------------------------------------ update / uninstall / logs / service
-def unlock_launchers(root: Path) -> None:
-    """Windows locks a running .exe (this very `qis update`, or the service's `qis serve`) but allows renaming it:
-    move the launchers aside so the reinstall can write new ones; leftovers are removed on the next update."""
-    if not IS_WIN:
-        return
-    scripts = root / ".venv" / "Scripts"
-    for old in scripts.glob("*.exe.old-*"):
-        try:
-            old.unlink()
-        except OSError:
-            pass
-    for name in ("qis.exe", "qis-gateway.exe"):
-        exe = scripts / name
-        if exe.exists():
-            try:
-                exe.rename(scripts / f"{name}.old-{int(time.time())}")
-            except OSError:
-                pass
-
-
 def cmd_update(a) -> None:
     root = Path(a.root).resolve() if a.root else default_root()
     app = root / "app"
@@ -524,8 +504,11 @@ def cmd_update(a) -> None:
 
     def apply(ref: str) -> None:
         run(git, "checkout", "--force", ref)
-        unlock_launchers(root)
-        pip_install(root, ["-e", str(app)])
+        # the app is an editable install: the checkout already switched the code. Only (re)install its
+        # dependencies, never the package itself, whose launcher (this very qis.exe) is locked on Windows.
+        import tomllib
+        deps = tomllib.loads((app / "pyproject.toml").read_text(encoding="utf-8"))["project"]["dependencies"]
+        pip_install(root, deps)
         install_comfy(root)
         DB(cfg.data_dir / "qis.db").migrate()
         if has_service:
