@@ -59,10 +59,10 @@ if ($smi) {
 } else {
     Warn "nvidia-smi not found: no NVIDIA GPU/driver. Only the tools-only profile (T0) will be offered."
 }
-$drive = (Get-Item (Split-Path -Qualifier ([IO.Path]::GetFullPath($Root)) + "\")).PSDrive
-$freeGb = [math]::Round((Get-PSDrive $drive.Name).Free / 1GB)
-Info "free space on $($drive.Name): $freeGb GB"
-if ($freeGb -lt 30 -and -not $SkipModels -and -not $Force) { Fail "need at least ~30 GB free on $($drive.Name): (models + PyTorch)" }
+$driveName = (Split-Path -Qualifier ([IO.Path]::GetFullPath($Root))).TrimEnd(":")
+$freeGb = [math]::Round((Get-PSDrive $driveName).Free / 1GB)
+Info "free space on ${driveName}: $freeGb GB"
+if ($freeGb -lt 30 -and -not $SkipModels -and -not $Force) { Fail "need at least ~30 GB free on ${driveName}: (models + PyTorch)" }
 New-Item -ItemType Directory -Force -Path $Root, "$Root\bin" | Out-Null
 
 # ---------------------------------------------------------------- uv + python

@@ -1,0 +1,78 @@
+name: ci
+
+on:
+  push:
+    branches: [master, main]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  python:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+      - run: uv venv
+      - run: uv pip install -e ".[dev]"
+      - run: uv run ruff check qis tests gen.py tools
+      - run: uv run pytest -q
+      - name: installer syntax
+        if: runner.os == 'Linux'
+        run: bash -n install/install.sh
+      - name: installer syntax (PowerShell)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: $null = [scriptblock]::Create((Get-Content -Raw install/install.ps1))
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: build dashboard
+        run: |
+          if [ -f web/package.json ]; then
+            cd web && npm ci && npm run typecheck && npm test -- --run && npm run build
+          else
+            echo "no web/ yet"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: hashFiles('qis/web/dist/index.html') != ''
+        with:
+          name: web-dist
+          path: qis/web/dist
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [python, web]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          path: qis/web/dist
+      - name: package
+        run: |
+          name="qwen-image-service-${GITHUB_REF_NAME}"
+          git archive --format=tar --prefix="$name/" HEAD | tar x
+          mkdir -p "$name/qis/web" && cp -r qis/web/dist "$name/qis/web/dist"
+          zip -qr "$name.zip" "$name"
+          sha256sum "$name.zip" install/install.ps1 install/install.sh > SHA256SUMS
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            qwen-image-service-*.zip
+            install/install.ps1
+            install/install.sh
+            SHA256SUMS
