@@ -1,7 +1,7 @@
 """Capture ComfyUI workflows produced by the legacy CLI (gen.py, tools/refine.py, tools/upscale.py).
 
-Run once against the pre-refactor code; the JSON files are the contract engine.workflows must reproduce.
-  python tests/golden/capture_legacy.py
+Ran once against the pre-refactor code (git 53a61d1, before gen.py became an API client); the JSON files in
+legacy/ are the contract qis.engine.workflows must reproduce. Kept for reference: run it inside that old checkout.
 """
 import argparse
 import json

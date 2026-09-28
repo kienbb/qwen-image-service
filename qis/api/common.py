@@ -12,6 +12,7 @@ import httpx
 from fastapi import Depends, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from pydantic import ValidationError
 
 from ..auth import ROLES, AuthError, has_scope
 from ..engine.comfy.client import ComfyUnavailable
@@ -71,6 +72,14 @@ def install_error_handlers(app) -> None:
         errors = e.errors()
         first = errors[0] if errors else {}
         loc = ".".join(str(x) for x in first.get("loc", []) if x not in ("body", "query"))
+        msg = first.get("msg", "invalid request")
+        return err(400, f"{loc}: {msg}" if loc else msg, "invalid_request", loc or None)
+
+    @app.exception_handler(ValidationError)
+    async def _pyd(request, e: ValidationError):
+        errors = e.errors()
+        first = errors[0] if errors else {}
+        loc = ".".join(str(x) for x in first.get("loc", []))
         msg = first.get("msg", "invalid request")
         return err(400, f"{loc}: {msg}" if loc else msg, "invalid_request", loc or None)
 
