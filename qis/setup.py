@@ -143,7 +143,8 @@ def install_comfy(root: Path, force: bool = False) -> Path:
 
 
 def install_deps(root: Path, comfy: Path, index: str) -> None:
-    pip_install(root, ["torch", "torchvision", "torchaudio", "--index-url", f"https://download.pytorch.org/whl/{index}"])
+    pins = lock().get("torch", {}).get(index, ["torch", "torchvision", "torchaudio"])
+    pip_install(root, [*pins, "--index-url", f"https://download.pytorch.org/whl/{index}"])
     reqs = []
     for f in [comfy / "requirements.txt", comfy / "custom_nodes" / "ComfyUI-GGUF" / "requirements.txt"]:
         for line in f.read_text(encoding="utf-8").splitlines():
@@ -358,6 +359,8 @@ def cmd_setup(a) -> None:
         say("   skipped (--skip-deps)")
     else:
         gpu = hw.gpus[0] if hw.gpus else None
+        if gpu and (problem := hardware.driver_problem(gpu.compute_cap, gpu.driver)) and not a.force:
+            sys.exit(f"{problem}. Update the NVIDIA driver and rerun (or --force).")
         index = a.torch_index or hardware.torch_index(gpu.compute_cap if gpu else None, gpu.driver if gpu else None)
         say(f"   torch index: {index}")
         install_deps(root, comfy, index)
@@ -595,7 +598,7 @@ def register_cli(sub) -> None:
     p.add_argument("--admin-email")
     p.add_argument("--admin-password")
     p.add_argument("--tunnel-token", help="Cloudflare tunnel token: installs cloudflared as a service")
-    p.add_argument("--torch-index", help="override the PyTorch wheel index (cu130 / cu128 / cu126)")
+    p.add_argument("--torch-index", help="override the PyTorch wheel index (cu130 / cu126)")
     p.add_argument("--service-user")
     p.add_argument("--no-service", action="store_true")
     p.add_argument("--skip-deps", action="store_true")

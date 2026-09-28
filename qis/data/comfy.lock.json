@@ -16,5 +16,18 @@
   "cloudflared": {
     "windows": "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe",
     "linux": "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64"
+  },
+  "torch": {
+    "_note": "torch 2.14 breaks comfy-aimdo 0.5.5 text-encoder loading (hostbuf_file_reader_read failed); 2.13.0 is the version ComfyUI 0.37 portable ships",
+    "cu130": [
+      "torch==2.13.0",
+      "torchvision==0.28.0",
+      "torchaudio==2.11.0"
+    ],
+    "cu126": [
+      "torch==2.13.0",
+      "torchvision==0.28.0",
+      "torchaudio==2.11.0"
+    ]
   }
 }

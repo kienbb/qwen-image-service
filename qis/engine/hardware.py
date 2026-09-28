@@ -107,9 +107,8 @@ def detect(path: str | Path = ".") -> Hardware:
         with contextlib.suppress(ValueError):
             if float(g.compute_cap) < 6.0:
                 hw.warnings.append(f"{g.name} (compute {g.compute_cap}) is too old for current PyTorch builds")
-        major = int(g.driver.split(".")[0]) if g.driver.split(".")[0].isdigit() else 0
-        if major and major < 570:
-            hw.warnings.append(f"driver {g.driver} is older than 570: CUDA 12.8 wheels need a newer driver")
+        if problem := driver_problem(g.compute_cap, g.driver):
+            hw.warnings.append(problem)
     if hw.ram_gb and hw.ram_gb < 30:
         hw.warnings.append(f"{hw.ram_gb:.0f} GB RAM: the 9.4 GB text encoder streams from RAM; 32 GB+ is recommended")
     return hw
@@ -137,21 +136,26 @@ def choose_tier(vram_gb: float | None) -> str:
 
 
 def torch_index(compute_cap: str | None, driver: str | None = None) -> str:
-    """PyTorch CUDA wheel index. The reference install (ComfyUI portable 0.37) runs torch cu130; cu130 needs driver
-    >= 580, cu128 (Blackwell minimum) needs >= 570; Pascal cards stay on cu126."""
-    try:
-        cc = float(compute_cap or 0)
-    except ValueError:
-        cc = 0
+    """PyTorch CUDA wheel index (torch is pinned in comfy.lock.json). cu130 needs driver >= 580; otherwise cu126
+    (driver >= 560), which does not cover Blackwell (compute 12.x): those cards need the newer driver."""
     try:
         major = int((driver or "0").split(".")[0])
     except ValueError:
         major = 0
-    if 0 < cc < 7.5:
-        return "cu126"
-    if major >= 580 or major == 0:
-        return "cu130"
-    return "cu128" if major >= 570 else "cu126"
+    return "cu130" if major >= 580 or major == 0 else "cu126"
+
+
+def driver_problem(compute_cap: str | None, driver: str | None) -> str | None:
+    try:
+        cc = float(compute_cap or 0)
+        major = int((driver or "0").split(".")[0])
+    except ValueError:
+        return None
+    if cc >= 10 and 0 < major < 580:
+        return f"compute {compute_cap} (Blackwell) needs NVIDIA driver >= 580, found {driver}"
+    if 0 < major < 560:
+        return f"driver {driver} is too old: install >= 580 (or at least 560)"
+    return None
 
 
 def nvml_sample(device: int = 0) -> dict:

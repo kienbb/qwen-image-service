@@ -51,8 +51,12 @@ export const useSettings = () => useQuery({ queryKey: ["settings"], queryFn: () 
 export const useKeys = () => useQuery({ queryKey: ["keys"], queryFn: () => api.get<{ data: ApiKey[]; scopes: string[] }>("keys") });
 export const useUsers = () => useQuery({ queryKey: ["users"], queryFn: () => api.get<{ data: User[]; roles: Role[] }>("users") });
 export const useModels = () => useQuery({ queryKey: ["models"], queryFn: () => api.get<ModelsResponse>("models") });
-export const useBench = (poll: boolean) =>
-  useQuery({ queryKey: ["bench"], queryFn: () => api.get<BenchState>("benchmark"), refetchInterval: poll ? 2000 : false });
+export const useBench = () =>
+  useQuery({
+    queryKey: ["bench"],
+    queryFn: () => api.get<BenchState>("benchmark"),
+    refetchInterval: (q) => (q.state.data?.status === "running" ? 2000 : false),
+  });
 export const useSystemInfo = () => useQuery({ queryKey: ["system"], queryFn: () => api.get<SystemInfo>("system/info"), refetchInterval: 10000 });
 export const useAudit = (limit: number, actor: string) =>
   useQuery({ queryKey: ["audit", limit, actor], queryFn: () => api.get<{ data: AuditRow[] }>("audit", { query: { limit, actor_name: actor || undefined } }) });

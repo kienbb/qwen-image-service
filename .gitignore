@@ -8,7 +8,6 @@ comfyui.log
 benchmark/
 .venv/
 .qis-dev/
-qis/web/dist/
 web/node_modules/
 web/dist/
 *.egg-info/

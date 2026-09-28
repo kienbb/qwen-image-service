@@ -182,7 +182,8 @@ async def admin_events(request: Request, user: dict = Depends(actor()), node: No
 
     async def gen():
         try:
-            yield f"event: node.status\ndata: {json.dumps(node.status(), default=str)}\n\n".encode()
+            first = {"type": "node.status", "data": node.status()}
+            yield f"event: node.status\ndata: {json.dumps(first, default=str)}\n\n".encode()
             while True:
                 try:
                     ev = await asyncio.wait_for(q.get(), 15)
@@ -220,6 +221,8 @@ async def job(job_id: str, request: Request, user: dict = Depends(actor()), node
     pub = job_public(node, request, j)
     pub["events"] = node.events.history(job_id)
     pub["api_key_id"] = j["api_key_id"]
+    key = node.keys.get(j["api_key_id"]) if j["api_key_id"] else None
+    pub["key_name"] = key["name"] if key else "dashboard"
     if j.get("result"):
         steps = []
         for s in j["result"].get("steps", []):
@@ -287,7 +290,12 @@ async def pg_events(job_id: str, request: Request, user: dict = Depends(actor())
 @router.get("/presets")
 async def presets(user: dict = Depends(actor()), node: Node = Depends(get_node)):
     avail = node.presets.available(node.cfg.models.model_set())
-    return {"presets": node.presets.data, "available": sorted(avail), "path": str(node.presets.path or "")}
+    from ..engine.constants import MODES, STYLES
+    from ..engine.imaging import PALETTE_CHOICES
+    ms = node.cfg.models.model_set()
+    return {"presets": node.presets.data, "available": sorted(avail), "path": str(node.presets.path or ""),
+            "palettes": PALETTE_CHOICES, "styles": list(STYLES), "modes": [m for m in MODES if m in ms.modes()],
+            "upscalers": list(ms.upscalers)}
 
 
 @router.put("/presets")

@@ -14,6 +14,7 @@ export const fmtGB = (n: number | null | undefined) => (n ? `${(n / 1024 ** 3).t
 
 export function fmtDuration(s: number | null | undefined): string {
   if (s === null || s === undefined || Number.isNaN(s)) return "—";
+  if (s === 0) return "0 s";
   if (s < 1) return `${Math.round(s * 1000)} ms`;
   if (s < 60) return `${s.toFixed(s < 10 ? 1 : 0)} s`;
   const m = Math.floor(s / 60);

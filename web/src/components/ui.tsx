@@ -13,7 +13,7 @@ import {
 
 export const cn = clsx;
 
-type Variant = "primary" | "secondary" | "ghost" | "danger" | "outline";
+type Variant = "primary" | "secondary" | "ghost" | "danger" | "danger-ghost" | "outline";
 type Size = "sm" | "md" | "icon";
 
 const variants: Record<Variant, string> = {
@@ -21,6 +21,7 @@ const variants: Record<Variant, string> = {
   secondary: "bg-subtle text-fg hover:bg-border/60",
   ghost: "hover:bg-subtle text-fg",
   danger: "bg-danger text-white hover:opacity-90",
+  "danger-ghost": "text-danger hover:bg-danger/10",
   outline: "border border-border bg-card hover:bg-subtle",
 };
 const sizes: Record<Size, string> = {
@@ -66,18 +67,20 @@ export function Spinner({ className }: { className?: string }) {
   );
 }
 
+// full width unless the caller sets its own width (clsx does not dedupe conflicting utilities)
+const width = (c?: string) => (c && /(^|\s)w-/.test(c) ? "" : "w-full");
 const field =
-  "w-full rounded-md border border-border bg-card px-2.5 text-sm placeholder:text-muted focus:outline-2 focus:outline-offset-0 focus:outline-ring disabled:opacity-60";
+  "rounded-md border border-border bg-card px-2.5 text-sm placeholder:text-muted focus:outline-2 focus:outline-offset-0 focus:outline-ring disabled:opacity-60";
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function Input({ className, ...rest }, ref) {
-  return <input ref={ref} className={cn(field, "h-9", className)} {...rest} />;
+  return <input ref={ref} className={cn(field, width(className), "h-9", className)} {...rest} />;
 });
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(function Textarea(
   { className, ...rest },
   ref,
 ) {
-  return <textarea ref={ref} className={cn(field, "py-2 min-h-20", className)} {...rest} />;
+  return <textarea ref={ref} className={cn(field, width(className), "py-2 min-h-20", className)} {...rest} />;
 });
 
 export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement>>(function Select(
@@ -85,7 +88,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSel
   ref,
 ) {
   return (
-    <select ref={ref} className={cn(field, "h-9 pr-7", className)} {...rest}>
+    <select ref={ref} className={cn(field, width(className), "h-9 pr-7", className)} {...rest}>
       {children}
     </select>
   );

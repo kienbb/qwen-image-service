@@ -69,3 +69,16 @@ def test_enhance_workflow_with_refs():
     assert wf["gen"]["inputs"]["image"] == ["batch", 0]
     assert wf["gen"]["inputs"]["prompt"].count("<|image_pad|>") == 2
     assert "Write the description in English" in wf["gen"]["inputs"]["prompt"]
+
+
+def test_profile_config_disables_missing_roles(tmp_path):
+    from qis.config import load_config
+    from qis.models import Manifest, profile_config, write_config
+    man = Manifest.load()
+    cfg_path = tmp_path / "config.toml"
+    write_config(cfg_path, profile_config(man, man.profile_models("T1", "fast"), "T1"))
+    cfg = load_config(cfg_path)
+    ms = cfg.models.model_set()
+    assert set(ms.unets) == {"turbo"} and ms.unets["turbo"] == "qwen_image_2.1_turbo_Q4_K_M.gguf"
+    assert set(ms.upscalers) == {"realesrgan-x2", "realesrgan-x4"}
+    assert man.profile_models("T1", "quality")[0:1] != []

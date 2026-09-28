@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/admin/favicon.svg" />
+    <title>QIS Dashboard</title>
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("qis-theme");
+          var dark = t ? t === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+          if (dark) document.documentElement.classList.add("dark");
+        } catch (e) {}
+      })();
+    </script>
+    <script type="module" crossorigin src="/admin/assets/index-Dwv-6LFM.js"></script>
+    <link rel="stylesheet" crossorigin href="/admin/assets/index-ClD_K8HY.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

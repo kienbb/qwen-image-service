@@ -222,7 +222,8 @@ def dump_toml(data: dict) -> str:
 
 def profile_config(manifest: Manifest, ids: list[str], tier: str) -> dict:
     """[models] / [profile] / comfy.reserve_vram values for a set of model ids."""
-    models: dict = {"turbo": None, "base": None, "base_q8": None, "upscalers": {}}
+    # "" (not a missing key) so that config defaults never re-enable a model the profile left out
+    models: dict = {"turbo": "", "base": "", "base_q8": "", "upscalers": {}}
     for i in ids:
         m = manifest.models[i]
         if m.role == "upscaler":

@@ -41,8 +41,8 @@ class EventBus:
                         self.db.execute("DELETE FROM job_events WHERE job_id=? AND seq<=?", (job_id, ev["seq"] - PERSIST_LIMIT))
         for q in list(self._job_subs.get(job_id, ())):
             _put(q, ev)
-        if type_ != "preview":
-            self.admin({"type": f"job.{type_}", "job_id": job_id, "data": ev["data"] if type_ != "progress" else ev["data"]})
+        if type_ != "preview" or self._admin_subs:
+            self.admin({"type": f"job.{type_}", "job_id": job_id, "data": ev["data"]})
         if type_ in ("succeeded", "failed", "canceled", "expired"):
             self._seq.pop(job_id, None)
             self.last_preview.pop(job_id, None)
