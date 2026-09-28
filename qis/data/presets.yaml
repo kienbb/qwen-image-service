@@ -1,0 +1,31 @@
+# Named pipelines exposed as "models" (GET /v1/models, the OpenAI `model` field).
+# ops[] use the op parameters of qis/engine/ops.py; the request fills prompt / n / size / seed / refs of the
+# generate op, and extra_body keys go to the first op that has that parameter.
+qwen-image-2.1-turbo:
+  description: "Qwen-Image 2.1 + Viggle turbo, 5 step. Ảnh minh hoạ nói chung."
+  ops:
+    - {op: generate, mode: turbo, size: 1024}
+qwen-image-2.1-base:
+  description: "Model gốc (không turbo), 10 step, chậm hơn."
+  ops:
+    - {op: generate, mode: base, size: 1024}
+qwen-image-2.1-hq:
+  description: "Turbo 8 step rồi Real-ESRGAN x2 (≈ 2048 px)."
+  ops:
+    - {op: generate, mode: turbo, steps: 8, size: 1024}
+    - {op: upscale, image: "$prev", method: esrgan, scale: 2}
+pixelart-16bit-64:
+  description: "Sprite pixel art 16-bit (SNES/Genesis), 64 px, nền trong suốt."
+  ops:
+    - {op: generate, mode: turbo, template: asset, style: 16bit, size: 768}
+    - {op: pixelize, image: "$prev", grid: 64, colors: 24}
+pixelart-32bit-128:
+  description: "Pixel art 32-bit (GBA/PS1), 128 px."
+  ops:
+    - {op: generate, mode: turbo, template: asset, style: 32bit, size: 768}
+    - {op: pixelize, image: "$prev", grid: 128, colors: 32}
+pixelart-icon-32:
+  description: "Icon 32 px, nền trong suốt native (RGBA)."
+  ops:
+    - {op: generate, mode: turbo, template: asset, style: 16bit, size: 768, transparent: true}
+    - {op: pixelize, image: "$prev", grid: 32, colors: 16}

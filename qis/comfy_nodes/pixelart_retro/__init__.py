@@ -1,17 +1,21 @@
 """ComfyUI custom node: Pixel Art (Retro) — wraps pixelize.pixelize()."""
 import numpy as np
-import torch
 from PIL import Image
 
 from .pixelize import PALETTE_CHOICES, pixelize
 
+try:  # the gateway imports pixelize.py from this package without torch; ComfyUI always has it
+    import torch
+except ImportError:  # pragma: no cover
+    torch = None
 
-def _to_pil(t: torch.Tensor) -> Image.Image:
+
+def _to_pil(t) -> Image.Image:
     arr = (t.cpu().numpy().clip(0, 1) * 255).astype(np.uint8)
     return Image.fromarray(arr, "RGBA" if arr.shape[-1] == 4 else "RGB")
 
 
-def _to_tensor(img: Image.Image) -> torch.Tensor:
+def _to_tensor(img: Image.Image):
     return torch.from_numpy(np.array(img.convert("RGBA")).astype(np.float32) / 255.0)
 
 

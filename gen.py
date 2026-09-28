@@ -92,7 +92,7 @@ def enhance(request: str, refs: list[str], ref_paths: list[str], clip_device: st
     if key in cache:
         return cache[key]["prompt"], cache[key]["ratio"]
 
-    system = (ROOT / "prompts" / ("pe_edit_system.txt" if refs else "pe_t2i_system.txt")).read_text(encoding="utf-8")
+    system = (ROOT / "qis" / "data" / "prompts" / ("pe_edit_system.txt" if refs else "pe_t2i_system.txt")).read_text(encoding="utf-8")
     vision = "<|vision_start|><|image_pad|><|vision_end|>" * len(refs)
     user = f"{request}\n(Write the description in English.)" if refs else request
     wf = {

@@ -1,0 +1,182 @@
+{
+ "argv": [
+  "img.png",
+  "--size",
+  "896x1152",
+  "--prompt-file",
+  "D:\\Projects\\qwen-image-2.1\\tests\\golden\\_stub_root\\prompt.txt"
+ ],
+ "workflow": {
+  "load": {
+   "class_type": "LoadImage",
+   "inputs": {
+    "image": "img.png"
+   }
+  },
+  "rgba": {
+   "class_type": "JoinImageWithAlpha",
+   "inputs": {
+    "image": [
+     "load",
+     0
+    ],
+    "alpha": [
+     "load",
+     1
+    ]
+   }
+  },
+  "scale": {
+   "class_type": "ImageScale",
+   "inputs": {
+    "image": [
+     "rgba",
+     0
+    ],
+    "upscale_method": "lanczos",
+    "width": 896,
+    "height": 1152,
+    "crop": "disabled"
+   }
+  },
+  "unet": {
+   "class_type": "UnetLoaderGGUF",
+   "inputs": {
+    "unet_name": "qwen-image-2.1-viggle-Q4_K_M.gguf"
+   }
+  },
+  "cache": {
+   "class_type": "QwenImage21Cache",
+   "inputs": {
+    "model": [
+     "unet",
+     0
+    ],
+    "device": "auto",
+    "dtype": "default"
+   }
+  },
+  "clip": {
+   "class_type": "CLIPLoader",
+   "inputs": {
+    "clip_name": "qwen3vl_8b_int8_convrot.safetensors",
+    "type": "qwen_image",
+    "device": "default"
+   }
+  },
+  "vae": {
+   "class_type": "VAELoader",
+   "inputs": {
+    "vae_name": "qwen_image_2.1_vae_bf16.safetensors"
+   }
+  },
+  "enc": {
+   "class_type": "TextEncodeQwenImage21",
+   "inputs": {
+    "clip": [
+     "clip",
+     0
+    ],
+    "prompt": "a cozy room",
+    "negative_prompt": "",
+    "resolution": 1152
+   }
+  },
+  "latent": {
+   "class_type": "VAEEncode",
+   "inputs": {
+    "pixels": [
+     "scale",
+     0
+    ],
+    "vae": [
+     "vae",
+     0
+    ]
+   }
+  },
+  "sigmas": {
+   "class_type": "ViggleTurboSigmas",
+   "inputs": {
+    "latent": [
+     "latent",
+     0
+    ],
+    "nodes": "0.25, 0.12"
+   }
+  },
+  "noise": {
+   "class_type": "RandomNoise",
+   "inputs": {
+    "noise_seed": 1
+   }
+  },
+  "guider": {
+   "class_type": "BasicGuider",
+   "inputs": {
+    "model": [
+     "cache",
+     0
+    ],
+    "conditioning": [
+     "enc",
+     0
+    ]
+   }
+  },
+  "sampler": {
+   "class_type": "KSamplerSelect",
+   "inputs": {
+    "sampler_name": "euler"
+   }
+  },
+  "sample": {
+   "class_type": "SamplerCustomAdvanced",
+   "inputs": {
+    "noise": [
+     "noise",
+     0
+    ],
+    "guider": [
+     "guider",
+     0
+    ],
+    "sampler": [
+     "sampler",
+     0
+    ],
+    "sigmas": [
+     "sigmas",
+     0
+    ],
+    "latent_image": [
+     "latent",
+     0
+    ]
+   }
+  },
+  "decode": {
+   "class_type": "VAEDecode",
+   "inputs": {
+    "samples": [
+     "sample",
+     0
+    ],
+    "vae": [
+     "vae",
+     0
+    ]
+   }
+  },
+  "save": {
+   "class_type": "SaveImage",
+   "inputs": {
+    "images": [
+     "decode",
+     0
+    ],
+    "filename_prefix": "refine/img"
+   }
+  }
+ }
+}

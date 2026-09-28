@@ -1,0 +1,183 @@
+{
+ "prompt": "Make his armor gold. Keep the same art style, proportions and background.",
+ "workflow": {
+  "unet": {
+   "class_type": "UnetLoaderGGUF",
+   "inputs": {
+    "unet_name": "qwen-image-2.1-viggle-Q4_K_M.gguf"
+   }
+  },
+  "clip": {
+   "class_type": "CLIPLoader",
+   "inputs": {
+    "clip_name": "qwen3vl_8b_int8_convrot.safetensors",
+    "type": "qwen_image",
+    "device": "default"
+   }
+  },
+  "vae": {
+   "class_type": "VAELoader",
+   "inputs": {
+    "vae_name": "qwen_image_2.1_vae_bf16.safetensors"
+   }
+  },
+  "enc": {
+   "class_type": "TextEncodeQwenImage21",
+   "inputs": {
+    "clip": [
+     "clip",
+     0
+    ],
+    "prompt": "Make his armor gold. Keep the same art style, proportions and background.",
+    "negative_prompt": "",
+    "resolution": 768,
+    "images.image_1": [
+     "ref1",
+     0
+    ],
+    "vae": [
+     "vae",
+     0
+    ]
+   }
+  },
+  "cache": {
+   "class_type": "QwenImage21Cache",
+   "inputs": {
+    "model": [
+     "unet",
+     0
+    ],
+    "device": "auto",
+    "dtype": "default"
+   }
+  },
+  "ref1": {
+   "class_type": "LoadImage",
+   "inputs": {
+    "image": "knight.png"
+   }
+  },
+  "sigmas": {
+   "class_type": "ViggleTurboSigmas",
+   "inputs": {
+    "latent": [
+     "enc",
+     2
+    ],
+    "nodes": "1.0, 0.875, 0.75, 0.5, 0.25"
+   }
+  },
+  "noise": {
+   "class_type": "RandomNoise",
+   "inputs": {
+    "noise_seed": 42
+   }
+  },
+  "guider": {
+   "class_type": "BasicGuider",
+   "inputs": {
+    "model": [
+     "cache",
+     0
+    ],
+    "conditioning": [
+     "enc",
+     0
+    ]
+   }
+  },
+  "sampler": {
+   "class_type": "KSamplerSelect",
+   "inputs": {
+    "sampler_name": "euler"
+   }
+  },
+  "sample": {
+   "class_type": "SamplerCustomAdvanced",
+   "inputs": {
+    "noise": [
+     "noise",
+     0
+    ],
+    "guider": [
+     "guider",
+     0
+    ],
+    "sampler": [
+     "sampler",
+     0
+    ],
+    "sigmas": [
+     "sigmas",
+     0
+    ],
+    "latent_image": [
+     "enc",
+     2
+    ]
+   }
+  },
+  "decode": {
+   "class_type": "VAEDecode",
+   "inputs": {
+    "samples": [
+     "sample",
+     0
+    ],
+    "vae": [
+     "vae",
+     0
+    ]
+   }
+  },
+  "save_raw": {
+   "class_type": "SaveImage",
+   "inputs": {
+    "images": [
+     "decode",
+     0
+    ],
+    "filename_prefix": "asset/raw"
+   }
+  },
+  "pixel": {
+   "class_type": "PixelArtRetro",
+   "inputs": {
+    "image": [
+     "decode",
+     0
+    ],
+    "grid": 64,
+    "colors": 24,
+    "palette": "adaptive",
+    "downscale": "box",
+    "dither": false,
+    "alpha_threshold": 128,
+    "preview_size": 256,
+    "crop": true,
+    "remove_bg": true
+   }
+  },
+  "save_sprite": {
+   "class_type": "SaveImage",
+   "inputs": {
+    "images": [
+     "pixel",
+     0
+    ],
+    "filename_prefix": "asset/sprite_64px"
+   }
+  },
+  "save_preview": {
+   "class_type": "SaveImage",
+   "inputs": {
+    "images": [
+     "pixel",
+     1
+    ],
+    "filename_prefix": "asset/preview"
+   }
+  }
+ }
+}

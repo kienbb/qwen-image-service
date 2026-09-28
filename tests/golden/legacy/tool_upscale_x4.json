@@ -1,0 +1,61 @@
+{
+ "argv": [
+  "img.png",
+  "--size",
+  "2048x2048",
+  "--model",
+  "RealESRGAN_x4plus.pth",
+  "--out",
+  "D:\\Projects\\qwen-image-2.1\\tests\\golden\\_stub_root\\o.png"
+ ],
+ "workflow": {
+  "load": {
+   "class_type": "LoadImage",
+   "inputs": {
+    "image": "img.png"
+   }
+  },
+  "model": {
+   "class_type": "UpscaleModelLoader",
+   "inputs": {
+    "model_name": "RealESRGAN_x4plus.pth"
+   }
+  },
+  "up": {
+   "class_type": "ImageUpscaleWithModel",
+   "inputs": {
+    "upscale_model": [
+     "model",
+     0
+    ],
+    "image": [
+     "load",
+     0
+    ]
+   }
+  },
+  "fit": {
+   "class_type": "ImageScale",
+   "inputs": {
+    "image": [
+     "up",
+     0
+    ],
+    "upscale_method": "lanczos",
+    "width": 2048,
+    "height": 2048,
+    "crop": "disabled"
+   }
+  },
+  "save": {
+   "class_type": "SaveImage",
+   "inputs": {
+    "images": [
+     "fit",
+     0
+    ],
+    "filename_prefix": "upscale/img_RealESRGAN_x4plus"
+   }
+  }
+ }
+}
