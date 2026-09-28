@@ -1,0 +1,20 @@
+{
+  "python": "3.13",
+  "comfyui": {
+    "url": "https://github.com/Comfy-Org/ComfyUI/archive/73c9bad4d21e7addbe1d13bc92eee0f1431b017d.zip",
+    "commit": "73c9bad4d21e7addbe1d13bc92eee0f1431b017d",
+    "version": "0.37.0"
+  },
+  "custom_nodes": [
+    {
+      "name": "ComfyUI-GGUF",
+      "url": "https://github.com/leejet/ComfyUI-GGUF/archive/373048b8403a7820620065210a691263d4da0a61.zip",
+      "commit": "373048b8403a7820620065210a691263d4da0a61"
+    }
+  ],
+  "winsw": "https://github.com/winsw/winsw/releases/download/v2.12.0/WinSW-x64.exe",
+  "cloudflared": {
+    "windows": "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe",
+    "linux": "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64"
+  }
+}

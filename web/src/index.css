@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --bg: #f6f7f9;
+  --fg: #0f172a;
+  --card: #ffffff;
+  --muted: #64748b;
+  --subtle: #f1f5f9;
+  --border: #e2e8f0;
+  --primary: #4f46e5;
+  --primary-fg: #ffffff;
+  --ring: #6366f1;
+  --danger: #dc2626;
+  --success: #16a34a;
+  --warning: #d97706;
+  --info: #0284c7;
+  color-scheme: light;
+}
+
+.dark {
+  --bg: #0b0f17;
+  --fg: #e5e7eb;
+  --card: #121826;
+  --muted: #94a3b8;
+  --subtle: #1a2233;
+  --border: #263044;
+  --primary: #818cf8;
+  --primary-fg: #0b0f17;
+  --ring: #818cf8;
+  --danger: #f87171;
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --info: #38bdf8;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-fg: var(--fg);
+  --color-card: var(--card);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-fg: var(--primary-fg);
+  --color-ring: var(--ring);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", "SFMono-Regular", Menlo, Consolas, monospace;
+}
+
+@layer base {
+  * { border-color: var(--border); }
+  html, body { background: var(--bg); color: var(--fg); }
+  body { font-family: var(--font-sans); font-size: 14px; -webkit-font-smoothing: antialiased; }
+  input, select, textarea, button { font: inherit; color: inherit; }
+}
+
+.checker {
+  background-color: #fff;
+  background-image: linear-gradient(45deg, #e5e7eb 25%, transparent 25%), linear-gradient(-45deg, #e5e7eb 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #e5e7eb 75%), linear-gradient(-45deg, transparent 75%, #e5e7eb 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+}
+.dark .checker {
+  background-color: #1f2937;
+  background-image: linear-gradient(45deg, #374151 25%, transparent 25%), linear-gradient(-45deg, #374151 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #374151 75%), linear-gradient(-45deg, transparent 75%, #374151 75%);
+}
+.pixelated { image-rendering: pixelated; }

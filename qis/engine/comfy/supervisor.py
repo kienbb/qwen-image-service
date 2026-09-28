@@ -7,8 +7,11 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import filecmp
+import json
 import logging
+import os
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -83,7 +86,42 @@ class ComfySupervisor:
             cmd += ["--reserve-vram", str(c.reserve_vram)]
         if sys.platform == "win32" and "python_embeded" in py:
             cmd.append("--windows-standalone-build")
+        if self.cfg.paths.models:
+            cmd += ["--extra-model-paths-config", str(self._write_model_paths())]
         return cmd + list(c.extra_args)
+
+    def _write_model_paths(self) -> Path:
+        """Point ComfyUI at the node's model root (kept outside the ComfyUI folder so updates never touch it)."""
+        root = Path(self.cfg.paths.models)
+        path = self.cfg.data_dir / "comfy" / "extra_model_paths.yaml"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        dirs = ["diffusion_models", "text_encoders", "vae", "upscale_models", "loras", "clip"]
+        lines = ["qis:", f"  base_path: {json.dumps(str(root))}"] + [f"  {d}: {d}" for d in dirs]
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        for d in dirs:
+            (root / d).mkdir(parents=True, exist_ok=True)
+        return path
+
+    @property
+    def _pid_file(self) -> Path:
+        return self.cfg.data_dir / "comfy" / "comfyui.pid"
+
+    def _kill_stale(self) -> None:
+        """A ComfyUI left over from a gateway that was killed hard would hold the port: stop it first."""
+        try:
+            pid = int(self._pid_file.read_text().strip())
+        except (OSError, ValueError):
+            return
+        try:
+            if sys.platform == "win32":
+                subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True, timeout=20)
+            else:
+                os.kill(pid, signal.SIGTERM)
+                time.sleep(2)
+            log.warning("stopped a stale ComfyUI (pid %d)", pid)
+        except (OSError, subprocess.SubprocessError):
+            pass
+        self._pid_file.unlink(missing_ok=True)
 
     def _spawn(self) -> None:
         comfy_dir = Path(self.cfg.paths.comfyui)
@@ -107,10 +145,13 @@ class ComfySupervisor:
         self._log_file.write(f"\n==== qis start {time.strftime('%Y-%m-%d %H:%M:%S')} ====\n".encode())
         self._log_file.flush()
         flags = subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0
+        self._kill_stale()
         cmd = self._command()
         log.info("starting ComfyUI: %s", " ".join(cmd))
         self.proc = subprocess.Popen(cmd, cwd=comfy_dir, stdout=self._log_file, stderr=subprocess.STDOUT,
                                      stdin=subprocess.DEVNULL, creationflags=flags)
+        self._pid_file.parent.mkdir(parents=True, exist_ok=True)
+        self._pid_file.write_text(str(self.proc.pid))
 
     def _kill(self) -> None:
         if self.proc and self.proc.poll() is None:
@@ -121,6 +162,7 @@ class ComfySupervisor:
                 self.proc.kill()
                 self.proc.wait(5)
         self.proc = None
+        self._pid_file.unlink(missing_ok=True)
 
     # ---------- lifecycle ----------
     async def start(self) -> None:

@@ -20,6 +20,7 @@ class ServerCfg(BaseModel):
 class PathsCfg(BaseModel):
     data: str = ""        # sqlite, blobs, logs; default <config dir>/../data or ./.qis-dev
     comfyui: str = ""     # directory that holds ComfyUI's main.py
+    models: str = ""      # model root (diffusion_models/, text_encoders/, vae/, upscale_models/); default <comfyui>/models
 
 
 class ComfyCfg(BaseModel):
@@ -114,8 +115,10 @@ def load_config(path: str | Path | None = None) -> Config:
         cfg.paths.data = str((base / ("../data" if base.name == "config" else ".qis-dev")).resolve())
     elif not Path(cfg.paths.data).is_absolute():
         cfg.paths.data = str((base / cfg.paths.data).resolve())
-    if cfg.paths.comfyui and not Path(cfg.paths.comfyui).is_absolute():
-        cfg.paths.comfyui = str((base / cfg.paths.comfyui).resolve())
+    for attr in ("comfyui", "models"):
+        v = getattr(cfg.paths, attr)
+        if v and not Path(v).is_absolute():
+            setattr(cfg.paths, attr, str((base / v).resolve()))
     if port := os.environ.get("QIS_PORT"):
         cfg.server.port = int(port)
     return cfg

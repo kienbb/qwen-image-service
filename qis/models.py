@@ -73,7 +73,7 @@ class Manifest:
 def models_root(cfg: Config) -> Path:
     if env := os.environ.get("QIS_MODELS_DIR"):
         return Path(env)
-    return Path(cfg.paths.comfyui) / "models"
+    return Path(cfg.paths.models) if cfg.paths.models else Path(cfg.paths.comfyui) / "models"
 
 
 def installed(cfg: Config, manifest: Manifest) -> list[dict]:
@@ -83,8 +83,10 @@ def installed(cfg: Config, manifest: Manifest) -> list[dict]:
     for m in manifest.models.values():
         p = root / m.dir / m.file
         size = p.stat().st_size if p.exists() else 0
-        out.append({**m.to_dict(), "path": str(p), "present": size == m.bytes, "partial": 0 < size != m.bytes,
-                    "size_on_disk": size, "active": m.file in active})
+        # present = usable file on disk; matches_manifest = the exact published build (a local build of the same
+        # name, e.g. a self-baked GGUF, is still usable but is not the manifest's file)
+        out.append({**m.to_dict(), "path": str(p), "present": size > 0, "matches_manifest": size == m.bytes,
+                    "partial": p.with_name(p.name + ".part").exists(), "size_on_disk": size, "active": m.file in active})
     # files configured but not in the manifest (e.g. a self-baked GGUF)
     known = {m.file for m in manifest.models.values()}
     for role, fname in [("turbo", cfg.models.turbo), ("base", cfg.models.base), ("base_q8", cfg.models.base_q8),

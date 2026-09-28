@@ -136,13 +136,22 @@ def choose_tier(vram_gb: float | None) -> str:
     return tier
 
 
-def torch_index(compute_cap: str | None) -> str:
-    """PyTorch wheel index for the GPU: cu128 for Turing+ (and required by Blackwell), cu126 for Pascal."""
+def torch_index(compute_cap: str | None, driver: str | None = None) -> str:
+    """PyTorch CUDA wheel index. The reference install (ComfyUI portable 0.37) runs torch cu130; cu130 needs driver
+    >= 580, cu128 (Blackwell minimum) needs >= 570; Pascal cards stay on cu126."""
     try:
         cc = float(compute_cap or 0)
     except ValueError:
         cc = 0
-    return "cu126" if 0 < cc < 7.5 else "cu128"
+    try:
+        major = int((driver or "0").split(".")[0])
+    except ValueError:
+        major = 0
+    if 0 < cc < 7.5:
+        return "cu126"
+    if major >= 580 or major == 0:
+        return "cu130"
+    return "cu128" if major >= 570 else "cu126"
 
 
 def nvml_sample(device: int = 0) -> dict:
