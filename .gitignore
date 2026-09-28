@@ -5,3 +5,4 @@ __pycache__/
 *.pyc
 tools/sdcpp/
 comfyui.log
+benchmark/

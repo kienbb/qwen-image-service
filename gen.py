@@ -31,7 +31,7 @@ SERVER = "http://127.0.0.1:8188"
 ROOT = Path(__file__).parent
 PE_CACHE = ROOT / "output" / "pe_cache.json"
 
-UNETS = {"base": "qwen-image-2.1-Q4_K_M.gguf",
+UNETS = {"base": "qwen-image-2.1-Q4_K_M.gguf", "base_q8": "qwen-image-2.1-Q8_0.gguf",
          "viggle": "qwen-image-2.1-viggle-Q4_K_M.gguf"}  # base + Viggle turbo v0.2.1 baked in (tools/merge_lora.py)
 VIGGLE_SIGMAS = {
     4: "1.0, 0.75, 0.5, 0.25",
@@ -47,6 +47,7 @@ MODES = {
     # raw sigma nodes; ViggleTurboSigmas applies the resolution shift. Extra steps only split the high-noise end
     "turbo": {"unet": "viggle", "steps": 5, "sigmas": VIGGLE_SIGMAS},
     "base": {"unet": "base", "steps": 10},
+    "base_q8": {"unet": "base_q8", "steps": 20},  # 8-bit weights: cleaner surfaces, 7.6 GB so partly offloaded on 6 GB
 }
 
 STYLES = {
@@ -59,7 +60,7 @@ STYLES = {
     "none": "",
 }
 SUBJECT_HINT = "Single game asset, centered, full object visible"
-EDIT_HINT = "Keep the same pixel art style, proportions and plain flat background."
+EDIT_HINT = "Keep the same art style, proportions and background."
 # Qwen-Image 2.1 native transparency (see official Comfy-Org template note)
 RGBA_WRAP = ("This is an RGBA format image with transparency. {} "
              "The image has an alpha channel and a transparent background.")
@@ -152,7 +153,7 @@ def build_workflow(a: argparse.Namespace, prompt: str, seed: int, name: str, ref
         wf["empty"] = {"class_type": "EmptyLatentImage", "inputs": {"width": w, "height": h, "batch_size": 1}}
         latent = ["empty", 0]
 
-    if a.mode == "base":
+    if a.mode in ("base", "base_q8"):
         wf["sample"] = {"class_type": "KSampler", "inputs": {
             "model": model, "positive": ["enc", 0], "negative": ["enc", 1], "latent_image": latent,
             "seed": seed, "steps": steps, "cfg": a.cfg, "sampler_name": "euler",
@@ -263,9 +264,10 @@ def main() -> None:
         print("warning: Viggle turbo was trained with up to 3 references")
 
     refs = [upload(r) for r in a.ref]
-    if a.enhance and not a.raw_prompt:
+    if a.enhance:
         # enhance the plain request; the RGBA wrapper is a fixed phrase the rewriter must not paraphrase
-        prompt, ratio = enhance(build_prompt(a.subject, a.style, False, edit), refs, a.ref, a.clip_device)
+        request = a.subject if a.raw_prompt else build_prompt(a.subject, a.style, False, edit)
+        prompt, ratio = enhance(request, refs, a.ref, a.clip_device)
         if a.transparent:
             prompt = RGBA_WRAP.format(prompt)
         if ratio and not aspect_given and not edit:
