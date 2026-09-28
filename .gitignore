@@ -1,0 +1,7 @@
+downloads/
+ComfyUI_windows_portable/
+output/
+__pycache__/
+*.pyc
+tools/sdcpp/
+comfyui.log
