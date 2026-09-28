@@ -7,6 +7,21 @@ Tài liệu liên quan: [DESIGN](DESIGN.md) (thiết kế kỹ thuật) · [BRD]
 > **Giả định lập lịch:** 1 dev full-time (có AI hỗ trợ), làm từ thứ Hai đến thứ Sáu, bắt đầu 30/09/2026, không tính nghỉ lễ.
 > Các mốc ngày là **kế hoạch dự kiến**, sẽ cập nhật lại khi xong mỗi milestone.
 
+> **Trạng thái 2026-09-29:** đã làm xong code cho M0–M7; 41/53 task hoàn tất (xem [TASKS](TASKS.md)). Tất cả được kiểm chứng trên máy tham chiếu RTX 3050:
+> - bộ test (golden, API trên fake ComfyUI, admin, MCP, load 100 client);
+> - E2E trên GPU thật qua OpenAI SDK;
+> - installer Windows chạy từ đầu đến cuối vào thư mục sạch (`-NoService`), sau đó chạy doctor, benchmark và `qis update`;
+> - `install.sh` chạy trên WSL Ubuntu.
+>
+> Còn lại trước khi gắn tag v1.0:
+> 1. Chạy thử service (WinSW/systemd) trên máy có quyền admin.
+> 2. Chạy thử qua Cloudflare Tunnel thật.
+> 3. Benchmark các tier T2–T5 trên GPU lớn.
+> 4. Host script cài đặt công khai (R2/Pages).
+> 5. Gắn tag `v1.0.0`.
+>
+> Lịch bên dưới là kế hoạch ban đầu, giữ lại để đối chiếu.
+
 ---
 
 ## 1. Tổng quan theo giai đoạn

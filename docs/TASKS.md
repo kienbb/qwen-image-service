@@ -2,54 +2,54 @@
 
 | ID | Issue Name | PIC | Priority | Status | Deadline | Sprint | Type | Difficulty | Milestone |
 |---|---|---|---|---|---|---|---|---|---|
-| QIS-001 | Dựng khung repo với uv, ruff, pytest và cấu trúc thư mục | Kiên | 1 - Urgent | — | 9/30/2026 | 1 - Research And Plan | Task | 4 - Easy | M0 |
-| QIS-002 | Đưa custom node viggle_turbo và pixelart_retro vào repo | Kiên | 1 - Urgent | — | 9/30/2026 | 1 - Research And Plan | Task | 4 - Easy | M0 |
-| QIS-003 | Tách engine/workflows.py từ gen.py và tools | Kiên | 1 - Urgent | — | 10/2/2026 | 2 - Cooking | Task | 3 - Moderate | M0 |
-| QIS-004 | Viết golden test so workflow mới với code cũ | Kiên | 1 - Urgent | — | 10/2/2026 | 3 - Evaluating And Improve | Task | 3 - Moderate | M0 |
-| QIS-005 | Viết ComfyClient async dùng HTTP và WebSocket | Kiên | 1 - Urgent | — | 10/5/2026 | 2 - Cooking | Task | 3 - Moderate | M0 |
-| QIS-006 | Dựng ComfySupervisor quản lý vòng đời ComfyUI | Kiên | 1 - Urgent | — | 10/6/2026 | 2 - Cooking | Task | 2 - Hard | M0 |
-| QIS-007 | Dựng app skeleton FastAPI và config loader | Kiên | 2 - High | — | 10/6/2026 | 2 - Cooking | Task | 4 - Easy | M0 |
-| QIS-008 | Thiết kế schema SQLite với Alembic và ULID | Kiên | 1 - Urgent | — | 10/8/2026 | 2 - Cooking | Task | 3 - Moderate | M1 |
-| QIS-009 | Viết cost model và admission control | Kiên | 1 - Urgent | — | 10/9/2026 | 2 - Cooking | User Story | 3 - Moderate | M1 |
-| QIS-010 | Dựng dispatcher với priority, aging, affinity, fair-share | Kiên | 1 - Urgent | — | 10/12/2026 | 2 - Cooking | User Story | 2 - Hard | M1 |
-| QIS-011 | Viết interface Executor, LocalComfyExecutor và CpuPool | Kiên | 1 - Urgent | — | 10/13/2026 | 2 - Cooking | Task | 3 - Moderate | M1 |
-| QIS-012 | Xử lý huỷ, timeout, retry và phục hồi khi restart | Kiên | 2 - High | — | 10/14/2026 | 2 - Cooking | User Story | 2 - Hard | M1 |
-| QIS-013 | Dựng fake ComfyUI và bộ test integration scheduler | Kiên | 2 - High | — | 10/15/2026 | 3 - Evaluating And Improve | Task | 3 - Moderate | M1 |
-| QIS-014 | Dựng blob store sha256 và API /v1/files | Kiên | 1 - Urgent | — | 10/16/2026 | 2 - Cooking | User Story | 3 - Moderate | M2 |
-| QIS-015 | Làm API key: tạo bằng CLI, hash, middleware, scope, quota | Kiên | 1 - Urgent | — | 10/19/2026 | 2 - Cooking | User Story | 3 - Moderate | M2 |
-| QIS-016 | Làm preset và endpoint /v1/images/generations, /edits, /v1/models | Kiên | 1 - Urgent | — | 10/21/2026 | 2 - Cooking | User Story | 2 - Hard | M2 |
-| QIS-017 | Làm /v1/jobs và keepalive chống lỗi 524 | Kiên | 1 - Urgent | — | 10/22/2026 | 2 - Cooking | User Story | 3 - Moderate | M2 |
-| QIS-018 | Làm /v1/node/info, readyz và /metrics | Kiên | 2 - High | — | 10/22/2026 | 2 - Cooking | Task | 4 - Easy | M2 |
-| QIS-019 | Kiểm thử E2E trên GPU qua Cloudflare Tunnel | Kiên | 2 - High | — | 10/23/2026 | 3 - Evaluating And Improve | Task | 3 - Moderate | M2 |
-| QIS-020 | Làm op refine và upscale | Kiên | 1 - Urgent | — | 10/27/2026 | 2 - Cooking | User Story | 3 - Moderate | M3 |
-| QIS-021 | Làm op outpaint tổng hợp | Kiên | 2 - High | — | 10/29/2026 | 2 - Cooking | User Story | 2 - Hard | M3 |
-| QIS-022 | Làm op CPU: pixelize, remove-bg, compose, fidelity | Kiên | 2 - High | — | 10/29/2026 | 2 - Cooking | User Story | 4 - Easy | M3 |
-| QIS-023 | Dựng pipeline executor nhiều op | Kiên | 1 - Urgent | — | 11/2/2026 | 2 - Cooking | User Story | 2 - Hard | M3 |
-| QIS-024 | Làm SSE sự kiện job và stream/partial_images kiểu OpenAI | Kiên | 2 - High | — | 11/3/2026 | 2 - Cooking | User Story | 3 - Moderate | M3 |
-| QIS-025 | Làm webhook, retention và URL có ký | Kiên | 3 - Normal | — | 11/4/2026 | 2 - Cooking | User Story | 3 - Moderate | M3 |
-| QIS-026 | Làm /mcp và chuyển gen.py thành client API | Kiên | 3 - Normal | — | 11/5/2026 | 2 - Cooking | User Story | 3 - Moderate | M3 |
-| QIS-027 | Làm user, session, argon2id, CSRF và khoá đăng nhập | Kiên | 1 - Urgent | — | 11/9/2026 | 2 - Cooking | User Story | 3 - Moderate | M4 |
-| QIS-028 | Làm runtime settings có schema và áp dụng nóng | Kiên | 1 - Urgent | — | 11/10/2026 | 2 - Cooking | User Story | 3 - Moderate | M4 |
-| QIS-029 | Làm admin API cho users, keys, jobs, models, system | Kiên | 2 - High | — | 11/11/2026 | 2 - Cooking | User Story | 2 - Hard | M4 |
-| QIS-030 | Làm SSE admin, đọc NVML và thống kê theo phút | Kiên | 2 - High | — | 11/12/2026 | 2 - Cooking | Task | 3 - Moderate | M4 |
-| QIS-031 | Ghi audit log cho thao tác quản trị | Kiên | 3 - Normal | — | 11/12/2026 | 2 - Cooking | Task | 4 - Easy | M4 |
-| QIS-032 | Dựng khung SPA: Vite, router, layout, theme, trang đăng nhập | Kiên | 1 - Urgent | — | 11/16/2026 | 2 - Cooking | Task | 3 - Moderate | M5 |
-| QIS-033 | Làm trang Tổng quan và Jobs | Kiên | 1 - Urgent | — | 11/18/2026 | 2 - Cooking | User Story | 3 - Moderate | M5 |
-| QIS-034 | Làm trang Playground | Kiên | 2 - High | — | 11/20/2026 | 2 - Cooking | User Story | 3 - Moderate | M5 |
-| QIS-035 | Làm trang Queue & Limits và Settings từ schema | Kiên | 2 - High | — | 11/23/2026 | 2 - Cooking | User Story | 3 - Moderate | M5 |
-| QIS-036 | Làm trang Models, API Keys và Users | Kiên | 2 - High | — | 11/25/2026 | 2 - Cooking | User Story | 3 - Moderate | M5 |
-| QIS-037 | Làm trang Logs, System và test Playwright | Kiên | 3 - Normal | — | 11/27/2026 | 3 - Evaluating And Improve | Task | 3 - Moderate | M5 |
-| QIS-038 | Viết hardware.py và logic chọn tier T0–T5 | Kiên | 1 - Urgent | — | 11/30/2026 | 2 - Cooking | Task | 3 - Moderate | M6 |
-| QIS-039 | Bake Viggle Q8/BF16 và viết manifest models.yaml | Kiên | 1 - Urgent | — | 12/2/2026 | 2 - Cooking | Task | 3 - Moderate | M6 |
-| QIS-040 | Chạy benchmark từng tier trên GPU cloud | Kiên | 2 - High | — | 12/3/2026 | 3 - Evaluating And Improve | Task | 3 - Moderate | M6 |
-| QIS-041 | Viết install.ps1: preflight, uv, ComfyUI pin, tải model | Kiên | 1 - Urgent | — | 12/7/2026 | 2 - Cooking | User Story | 2 - Hard | M6 |
-| QIS-042 | Đăng ký WinSW service, cloudflared và benchmark sau cài | Kiên | 1 - Urgent | — | 12/9/2026 | 2 - Cooking | User Story | 3 - Moderate | M6 |
-| QIS-043 | Làm CLI qis và lệnh doctor | Kiên | 2 - High | — | 12/10/2026 | 2 - Cooking | Task | 3 - Moderate | M6 |
-| QIS-044 | Viết install.sh và unit systemd cho Linux | Kiên | 1 - Urgent | — | 12/14/2026 | 2 - Cooking | User Story | 3 - Moderate | M7 |
-| QIS-045 | Làm qis update có rollback và backup DB | Kiên | 2 - High | — | 12/16/2026 | 2 - Cooking | User Story | 2 - Hard | M7 |
-| QIS-046 | Dựng CI build release và host script cài đặt | Kiên | 2 - High | — | 12/17/2026 | 2 - Cooking | Task | 3 - Moderate | M7 |
-| QIS-047 | Soát bảo mật và load test trước v1.0 | Kiên | 2 - High | — | 12/18/2026 | 3 - Evaluating And Improve | Task | 3 - Moderate | M7 |
-| QIS-048 | Viết docs/API.md, docs/OPERATIONS.md và phát hành v1.0 | Kiên | 3 - Normal | — | 12/22/2026 | 3 - Evaluating And Improve | Task | 4 - Easy | M7 |
+| QIS-001 | Dựng khung repo với uv, ruff, pytest và cấu trúc thư mục | Kiên | 1 - Urgent | Done | 9/30/2026 | 1 - Research And Plan | Task | 4 - Easy | M0 |
+| QIS-002 | Đưa custom node viggle_turbo và pixelart_retro vào repo | Kiên | 1 - Urgent | Done | 9/30/2026 | 1 - Research And Plan | Task | 4 - Easy | M0 |
+| QIS-003 | Tách engine/workflows.py từ gen.py và tools | Kiên | 1 - Urgent | Done | 10/2/2026 | 2 - Cooking | Task | 3 - Moderate | M0 |
+| QIS-004 | Viết golden test so workflow mới với code cũ | Kiên | 1 - Urgent | Done | 10/2/2026 | 3 - Evaluating And Improve | Task | 3 - Moderate | M0 |
+| QIS-005 | Viết ComfyClient async dùng HTTP và WebSocket | Kiên | 1 - Urgent | Done | 10/5/2026 | 2 - Cooking | Task | 3 - Moderate | M0 |
+| QIS-006 | Dựng ComfySupervisor quản lý vòng đời ComfyUI | Kiên | 1 - Urgent | Done | 10/6/2026 | 2 - Cooking | Task | 2 - Hard | M0 |
+| QIS-007 | Dựng app skeleton FastAPI và config loader | Kiên | 2 - High | Done | 10/6/2026 | 2 - Cooking | Task | 4 - Easy | M0 |
+| QIS-008 | Thiết kế schema SQLite với Alembic và ULID | Kiên | 1 - Urgent | Done | 10/8/2026 | 2 - Cooking | Task | 3 - Moderate | M1 |
+| QIS-009 | Viết cost model và admission control | Kiên | 1 - Urgent | Done | 10/9/2026 | 2 - Cooking | User Story | 3 - Moderate | M1 |
+| QIS-010 | Dựng dispatcher với priority, aging, affinity, fair-share | Kiên | 1 - Urgent | Done | 10/12/2026 | 2 - Cooking | User Story | 2 - Hard | M1 |
+| QIS-011 | Viết interface Executor, LocalComfyExecutor và CpuPool | Kiên | 1 - Urgent | Done | 10/13/2026 | 2 - Cooking | Task | 3 - Moderate | M1 |
+| QIS-012 | Xử lý huỷ, timeout, retry và phục hồi khi restart | Kiên | 2 - High | Done | 10/14/2026 | 2 - Cooking | User Story | 2 - Hard | M1 |
+| QIS-013 | Dựng fake ComfyUI và bộ test integration scheduler | Kiên | 2 - High | Done | 10/15/2026 | 3 - Evaluating And Improve | Task | 3 - Moderate | M1 |
+| QIS-014 | Dựng blob store sha256 và API /v1/files | Kiên | 1 - Urgent | Done | 10/16/2026 | 2 - Cooking | User Story | 3 - Moderate | M2 |
+| QIS-015 | Làm API key: tạo bằng CLI, hash, middleware, scope, quota | Kiên | 1 - Urgent | Done | 10/19/2026 | 2 - Cooking | User Story | 3 - Moderate | M2 |
+| QIS-016 | Làm preset và endpoint /v1/images/generations, /edits, /v1/models | Kiên | 1 - Urgent | Done | 10/21/2026 | 2 - Cooking | User Story | 2 - Hard | M2 |
+| QIS-017 | Làm /v1/jobs và keepalive chống lỗi 524 | Kiên | 1 - Urgent | Done | 10/22/2026 | 2 - Cooking | User Story | 3 - Moderate | M2 |
+| QIS-018 | Làm /v1/node/info, readyz và /metrics | Kiên | 2 - High | In Progress | 10/22/2026 | 2 - Cooking | Task | 4 - Easy | M2 |
+| QIS-019 | Kiểm thử E2E trên GPU qua Cloudflare Tunnel | Kiên | 2 - High | Done | 10/23/2026 | 3 - Evaluating And Improve | Task | 3 - Moderate | M2 |
+| QIS-020 | Làm op refine và upscale | Kiên | 1 - Urgent | Done | 10/27/2026 | 2 - Cooking | User Story | 3 - Moderate | M3 |
+| QIS-021 | Làm op outpaint tổng hợp | Kiên | 2 - High | Done | 10/29/2026 | 2 - Cooking | User Story | 2 - Hard | M3 |
+| QIS-022 | Làm op CPU: pixelize, remove-bg, compose, fidelity | Kiên | 2 - High | Done | 10/29/2026 | 2 - Cooking | User Story | 4 - Easy | M3 |
+| QIS-023 | Dựng pipeline executor nhiều op | Kiên | 1 - Urgent | Done | 11/2/2026 | 2 - Cooking | User Story | 2 - Hard | M3 |
+| QIS-024 | Làm SSE sự kiện job và stream/partial_images kiểu OpenAI | Kiên | 2 - High | Done | 11/3/2026 | 2 - Cooking | User Story | 3 - Moderate | M3 |
+| QIS-025 | Làm webhook, retention và URL có ký | Kiên | 3 - Normal | Done | 11/4/2026 | 2 - Cooking | User Story | 3 - Moderate | M3 |
+| QIS-026 | Làm /mcp và chuyển gen.py thành client API | Kiên | 3 - Normal | Done | 11/5/2026 | 2 - Cooking | User Story | 3 - Moderate | M3 |
+| QIS-027 | Làm user, session, argon2id, CSRF và khoá đăng nhập | Kiên | 1 - Urgent | Done | 11/9/2026 | 2 - Cooking | User Story | 3 - Moderate | M4 |
+| QIS-028 | Làm runtime settings có schema và áp dụng nóng | Kiên | 1 - Urgent | Done | 11/10/2026 | 2 - Cooking | User Story | 3 - Moderate | M4 |
+| QIS-029 | Làm admin API cho users, keys, jobs, models, system | Kiên | 2 - High | Done | 11/11/2026 | 2 - Cooking | User Story | 2 - Hard | M4 |
+| QIS-030 | Làm SSE admin, đọc NVML và thống kê theo phút | Kiên | 2 - High | Done | 11/12/2026 | 2 - Cooking | Task | 3 - Moderate | M4 |
+| QIS-031 | Ghi audit log cho thao tác quản trị | Kiên | 3 - Normal | Done | 11/12/2026 | 2 - Cooking | Task | 4 - Easy | M4 |
+| QIS-032 | Dựng khung SPA: Vite, router, layout, theme, trang đăng nhập | Kiên | 1 - Urgent | Done | 11/16/2026 | 2 - Cooking | Task | 3 - Moderate | M5 |
+| QIS-033 | Làm trang Tổng quan và Jobs | Kiên | 1 - Urgent | Done | 11/18/2026 | 2 - Cooking | User Story | 3 - Moderate | M5 |
+| QIS-034 | Làm trang Playground | Kiên | 2 - High | Done | 11/20/2026 | 2 - Cooking | User Story | 3 - Moderate | M5 |
+| QIS-035 | Làm trang Queue & Limits và Settings từ schema | Kiên | 2 - High | Done | 11/23/2026 | 2 - Cooking | User Story | 3 - Moderate | M5 |
+| QIS-036 | Làm trang Models, API Keys và Users | Kiên | 2 - High | Done | 11/25/2026 | 2 - Cooking | User Story | 3 - Moderate | M5 |
+| QIS-037 | Làm trang Logs, System và test Playwright | Kiên | 3 - Normal | Done | 11/27/2026 | 3 - Evaluating And Improve | Task | 3 - Moderate | M5 |
+| QIS-038 | Viết hardware.py và logic chọn tier T0–T5 | Kiên | 1 - Urgent | Done | 11/30/2026 | 2 - Cooking | Task | 3 - Moderate | M6 |
+| QIS-039 | Bake Viggle Q8/BF16 và viết manifest models.yaml | Kiên | 1 - Urgent | Done | 12/2/2026 | 2 - Cooking | Task | 3 - Moderate | M6 |
+| QIS-040 | Chạy benchmark từng tier trên GPU cloud | Kiên | 2 - High | In Progress | 12/3/2026 | 3 - Evaluating And Improve | Task | 3 - Moderate | M6 |
+| QIS-041 | Viết install.ps1: preflight, uv, ComfyUI pin, tải model | Kiên | 1 - Urgent | Done | 12/7/2026 | 2 - Cooking | User Story | 2 - Hard | M6 |
+| QIS-042 | Đăng ký WinSW service, cloudflared và benchmark sau cài | Kiên | 1 - Urgent | In Progress | 12/9/2026 | 2 - Cooking | User Story | 3 - Moderate | M6 |
+| QIS-043 | Làm CLI qis và lệnh doctor | Kiên | 2 - High | Done | 12/10/2026 | 2 - Cooking | Task | 3 - Moderate | M6 |
+| QIS-044 | Viết install.sh và unit systemd cho Linux | Kiên | 1 - Urgent | In Progress | 12/14/2026 | 2 - Cooking | User Story | 3 - Moderate | M7 |
+| QIS-045 | Làm qis update có rollback và backup DB | Kiên | 2 - High | In Progress | 12/16/2026 | 2 - Cooking | User Story | 2 - Hard | M7 |
+| QIS-046 | Dựng CI build release và host script cài đặt | Kiên | 2 - High | In Progress | 12/17/2026 | 2 - Cooking | Task | 3 - Moderate | M7 |
+| QIS-047 | Soát bảo mật và load test trước v1.0 | Kiên | 2 - High | Done | 12/18/2026 | 3 - Evaluating And Improve | Task | 3 - Moderate | M7 |
+| QIS-048 | Viết docs/API.md, docs/OPERATIONS.md và phát hành v1.0 | Kiên | 3 - Normal | In Progress | 12/22/2026 | 3 - Evaluating And Improve | Task | 4 - Easy | M7 |
 | QIS-049 | Thiết kế mesh nhiều node (docs/MESH.md) | Kiên | 3 - Normal | — | — | 1 - Research And Plan | User Story | 1 - Extremely Hard | Deferred |
 | QIS-050 | Gộp batch nhiều job cùng prompt trên GPU lớn | Kiên | 4 - Low | — | — | 1 - Research And Plan | User Story | 3 - Moderate | Deferred |
 | QIS-051 | Đăng nhập SSO qua OIDC hoặc Cloudflare Access JWT | Kiên | 4 - Low | — | — | 1 - Research And Plan | User Story | 3 - Moderate | Deferred |
@@ -110,7 +110,7 @@ presets.yaml; map trường OpenAI (size, quality, background, n, response_forma
 POST/GET/DELETE/list/retry job, Idempotency-Key; request đồng bộ gửi khoảng trắng mỗi 15 s, tắt được bằng api.sync_keepalive (khi đó trả 400 use_async).
 
 **QIS-018 — Làm /v1/node/info, readyz và /metrics**  
-node_id + ed25519 sinh lần đầu; node/info trả GPU, profile, preset, queue, perf; metrics Prometheus chỉ cho loopback hoặc token.
+node_id + ed25519 sinh lần đầu; node/info trả GPU, profile, preset, queue, perf; metrics Prometheus chỉ cho loopback hoặc token. [Trạng thái 2026-09-29: Chưa chạy qua Cloudflare Tunnel thật (chờ token của owner); keep-alive đã có test tự động.]
 
 **QIS-019 — Kiểm thử E2E trên GPU qua Cloudflare Tunnel**  
 Dựng tunnel thử, gọi từ máy khác bằng openai SDK: generate mỗi preset, edit, job enhance 3 phút (không 524), 30 request đồng thời. Ghi kết quả vào tests/e2e/REPORT.md. Cắt bản v0.1-alpha.
@@ -176,31 +176,31 @@ Tail log có lọc, restart, update, backup; smoke test Playwright luồng login
 Bake bằng tools/merge_lora.py + sd-cli; đẩy lên repo HF (private nếu license chưa rõ); manifest có url, sha256, bytes, min_vram, license, commercial_ok và profile T0–T5.
 
 **QIS-040 — Chạy benchmark từng tier trên GPU cloud**  
-Thuê GPU 12/16/24 GB theo giờ, chạy qis benchmark cho mỗi profile, chốt reserve_vram, batch và thời gian/ảnh hiển thị trong installer. Ghi vào docs/BENCHMARK.md.
+Thuê GPU 12/16/24 GB theo giờ, chạy qis benchmark cho mỗi profile, chốt reserve_vram, batch và thời gian/ảnh hiển thị trong installer. Ghi vào docs/BENCHMARK.md. [Trạng thái 2026-09-29: Chưa thuê GPU cloud: số T2–T5 vẫn là ước tính; benchmark tự chạy sau khi cài sẽ đo số thật.]
 
 **QIS-041 — Viết install.ps1: preflight, uv, ComfyUI pin, tải model**  
 Chạy được qua irm|iex và scriptblock có tham số; prompt chọn profile; uv + Python 3.12 + torch cu128/cu126; ComfyUI + node pin; tải model resume + sha256 + dùng lại file có sẵn; idempotent.
 
 **QIS-042 — Đăng ký WinSW service, cloudflared và benchmark sau cài**  
-Service qis-gateway tự khởi động và restart; --TunnelToken cài cloudflared service; đợi readyz, chạy benchmark, đặt max_pending; in tổng kết URL, admin, lệnh test.
+Service qis-gateway tự khởi động và restart; --TunnelToken cài cloudflared service; đợi readyz, chạy benchmark, đặt max_pending; in tổng kết URL, admin, lệnh test. [Trạng thái 2026-09-29: Đã viết WinSW + cloudflared; chưa chạy trên máy có quyền Administrator.]
 
 **QIS-043 — Làm CLI qis và lệnh doctor**  
 status, start/stop/restart, logs, doctor (driver, torch thấy GPU, node bắt buộc, sha256 model, ổ đĩa, port, cloudflared), benchmark, models, profile, admin, key, db backup, uninstall. Kiểm thử trên VM Windows sạch.
 
 **QIS-044 — Viết install.sh và unit systemd cho Linux**  
-Đọc prompt từ /dev/tty, chế độ --yes khi không có tty, user qis, systemd hardening, cloudflared; kiểm thử trên Ubuntu 22.04 và 24.04 sạch có GPU.
+Đọc prompt từ /dev/tty, chế độ --yes khi không có tty, user qis, systemd hardening, cloudflared; kiểm thử trên Ubuntu 22.04 và 24.04 sạch có GPU. [Trạng thái 2026-09-29: install.sh đã chạy thành công trên WSL Ubuntu (--no-service); unit systemd chưa chạy thử.]
 
 **QIS-045 — Làm qis update có rollback và backup DB**  
-Tải release, kiểm hash, giải nén app.new, backup DB, migration, đổi thư mục nguyên tử, restart; rollback nếu readyz không lên trong 3 phút. Test cả nhánh thành công và rollback.
+Tải release, kiểm hash, giải nén app.new, backup DB, migration, đổi thư mục nguyên tử, restart; rollback nếu readyz không lên trong 3 phút. Test cả nhánh thành công và rollback. [Trạng thái 2026-09-29: qis update đã kiểm chứng; nhánh rollback khi có service chưa chạy thử.]
 
 **QIS-046 — Dựng CI build release và host script cài đặt**  
-GitHub Actions: build web, đóng gói server+engine+install, SHA-256 (+ minisign), tạo release theo tag; publish install.ps1/install.sh lên Cloudflare Pages/R2 ở get.<domain>.
+GitHub Actions: build web, đóng gói server+engine+install, SHA-256 (+ minisign), tạo release theo tag; publish install.ps1/install.sh lên Cloudflare Pages/R2 ở get.<domain>. [Trạng thái 2026-09-29: CI (lint + test Ubuntu/Windows + build web + release theo tag) đã xanh; chưa host script lên R2/Pages.]
 
 **QIS-047 — Soát bảo mật và load test trước v1.0**  
 Đối chiếu DESIGN §11 (ComfyUI loopback, bomb, SSRF, traversal, header giả, key trong log); load test 100 request đồng thời 30 phút trên máy 6 GB; không rò bộ nhớ, không job mất.
 
 **QIS-048 — Viết docs/API.md, docs/OPERATIONS.md và phát hành v1.0**  
-API: ví dụ OpenAI SDK, curl, jobs, pipeline, SSE, lỗi. Operations: cài, tunnel + Access policy, cập nhật, sao lưu, xử lý sự cố. Cập nhật README; tag v1.0.0.
+API: ví dụ OpenAI SDK, curl, jobs, pipeline, SSE, lỗi. Operations: cài, tunnel + Access policy, cập nhật, sao lưu, xử lý sự cố. Cập nhật README; tag v1.0.0. [Trạng thái 2026-09-29: docs/API.md, OPERATIONS.md xong; chưa gắn tag v1.0.0.]
 
 **QIS-049 — Thiết kế mesh nhiều node (docs/MESH.md)**  
 Chọn overlay mạng, discovery, định tuyến theo ETA + affinity, peer token ed25519, đồng bộ scope cluster (user/key/preset), RemoteNodeExecutor. Chưa xếp lịch — bắt đầu sau v1.0.
