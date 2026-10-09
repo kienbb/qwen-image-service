@@ -31,6 +31,13 @@ class JobCanceled(Exception):
     pass
 
 
+def op_class(op: str, has_refs: bool = False) -> str:
+    """Timing class of an op (MESH.md 3.1): t2i, edit, refine, upscale, outpaint, enhance; CPU ops keep their name."""
+    if op == "generate":
+        return "edit" if has_refs else "t2i"
+    return "enhance" if op == "enhance_prompt" else op
+
+
 class Emit(Protocol):
     def __call__(self, type_: str, data: dict | None = None) -> Any: ...
 
@@ -59,6 +66,8 @@ class _JobCtx:
         self.prompt_id: str | None = None
         self._last_preview = 0.0
         self.created: list[str] = []
+        self.calls: list[dict] = []     # one entry per ComfyUI call of the current op (timings for the hub, MESH.md 2.6)
+        self.cold_start = False         # this job loaded a different diffusion model than the one resident before
 
     # files
     def read(self, file_id: str) -> bytes:
@@ -98,9 +107,15 @@ class _JobCtx:
         self.check_cancel()
         await self.ex.ready()
         i, n = part
+        t_call = time.monotonic()
+        span: list[float] = []          # monotonic time of the first and the last progress event of this call
 
         async def on_progress(value: int, maximum: int, node: str | None):
             if maximum:
+                now = time.monotonic()
+                if not span:
+                    span.append(now)
+                span[1:] = [now]
                 self.emit("progress", {"op_index": self.step, "op": self.op_name, "label": label, "step": value,
                                        "steps": maximum, "part": i + 1, "parts": n,
                                        "pct": round((i + value / maximum) / n, 4)})
@@ -120,9 +135,13 @@ class _JobCtx:
                                                on_submitted=submitted)
         finally:
             self.prompt_id = None
+            self.calls.append({"seconds": round(time.monotonic() - t_call, 3),
+                               "sample_s": round(span[1] - span[0], 3) if len(span) == 2 else 0.0})
         loaded = workflow_models(wf)
         unets = [m for m in loaded if m.endswith((".gguf", ".safetensors"))]
         if unets:
+            if unets[0] != self.ex.loaded_model:
+                self.cold_start = True
             self.ex.loaded_model = unets[0]
         self.check_cancel()
         return outputs
@@ -209,10 +228,14 @@ class LocalComfyExecutor:
                     w, h = ctx.size(first)
                     mp_in = w * h / 1e6
                 est = bound.estimate(perf, n_in, mp_in) / max(perf.calib.get(op.op, 1.0), 1e-6)
+                ctx.calls = []
                 t = time.monotonic()
                 res = await bound.run(ctx, refs)
                 dt = time.monotonic() - t
-                timings.append({"op": op.op, "seconds": round(dt, 3), "estimate": round(est, 3), "kind": op_kind(op)})
+                # sample_s only means something for ops whose cost scales with sampling steps (MESH.md 3.1)
+                calls = [{**c, "sample_s": c["sample_s"] if op.op in ("generate", "refine") else 0.0} for c in ctx.calls]
+                timings.append({"op": op.op, "class": op_class(op.op, bool(refs.get("refs"))), "seconds": round(dt, 3),
+                                "estimate": round(est, 3), "kind": op_kind(op), "calls": calls})
                 results.append(res)
                 emit("op_done", {"op_index": i, "op": op.op, "images": res.images, "extra": res.extra,
                                  "text": res.text, "data": res.data, "seconds": round(dt, 2)})
@@ -231,7 +254,7 @@ class LocalComfyExecutor:
                             "extra": {n: [self._file_ref(f) for f in v] for n, v in r.extra.items()},
                             "text": r.text, "data": r.data})
         self.storage.set_expiry(keep, hours, purpose="output")
-        return {"outputs": outputs, "timings": timings, "degraded": degraded,
+        return {"outputs": outputs, "timings": timings, "degraded": degraded, "cold_start": ctx.cold_start,
                 "steps": [{"op": spec.ops[i].op, "images": r.images, "extra": r.extra, "data": r.data}
                           for i, r in enumerate(results)]}
 

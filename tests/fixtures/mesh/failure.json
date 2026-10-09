@@ -1,0 +1,31 @@
+{
+ "valid": [
+  {
+   "v": 1,
+   "type": "failure",
+   "id": "m_01JA0000000000000000000005",
+   "ts": 1760000000.123,
+   "attempt_id": "att_01JA0000000000000000000001",
+   "code": "oom",
+   "message": "CUDA out of memory",
+   "retryable": true,
+   "timings": {
+    "fetch_s": 0.5,
+    "upload_s": 0.0
+   }
+  }
+ ],
+ "invalid": [
+  {
+   "why": "missing code",
+   "msg": {
+    "v": 1,
+    "type": "failure",
+    "id": "m_01JA0000000000000000000005",
+    "ts": 1760000000.123,
+    "attempt_id": "att_01JA0000000000000000000001",
+    "message": "x"
+   }
+  }
+ ]
+}

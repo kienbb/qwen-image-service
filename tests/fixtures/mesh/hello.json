@@ -1,0 +1,536 @@
+{
+ "valid": [
+  {
+   "v": 1,
+   "type": "hello",
+   "id": "m_01JA0000000000000000000005",
+   "ts": 1760000000.123,
+   "worker_id": "node_01J9Z0000000000000000000XX",
+   "name": "PIXON-3060-01",
+   "version": "0.9.3",
+   "proto": 1,
+   "gpu": {
+    "name": "NVIDIA GeForce RTX 3060",
+    "vram_mb": 12288,
+    "driver": "581.57",
+    "compute_cap": "8.6"
+   },
+   "ram_mb": 65536,
+   "tier": "T2",
+   "model_files": [
+    {
+     "role": "diffusion",
+     "mode": "turbo",
+     "file": "qwen-image-2.1-viggle-Q8_0.gguf",
+     "bytes": 7612345678,
+     "manifest_id": "qwen-image-2.1-viggle-q8",
+     "sha256": "4be1000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "role": "diffusion",
+     "mode": "base",
+     "file": "qwen-image-2.1-Q4_K_M.gguf",
+     "bytes": 4604557984,
+     "manifest_id": "qwen-image-2.1-q4km",
+     "sha256": "77c0000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+     "role": "text_encoder",
+     "file": "qwen3vl_8b_int8_convrot.safetensors",
+     "bytes": 9350000000,
+     "manifest_id": "qwen3vl-8b-int8",
+     "sha256": "a9d3000000000000000000000000000000000000000000000000000000000000"
+    }
+   ],
+   "modes": [
+    "turbo",
+    "base"
+   ],
+   "upscalers": [
+    "realesrgan-x2",
+    "realesrgan-x4"
+   ],
+   "ops": [
+    "generate",
+    "enhance_prompt",
+    "refine",
+    "upscale",
+    "outpaint",
+    "pixelize",
+    "remove_bg",
+    "compose",
+    "fidelity"
+   ],
+   "presets": {
+    "qwen-image-2.1-turbo": {
+     "description": "Qwen-Image 2.1 + Viggle turbo, 5 step.",
+     "ops": [
+      {
+       "op": "generate",
+       "mode": "turbo",
+       "size": 1024
+      }
+     ],
+     "files": [
+      "qwen-image-2.1-viggle-Q8_0.gguf",
+      "qwen3vl_8b_int8_convrot.safetensors",
+      "qwen_image_2.1_vae_bf16.safetensors"
+     ],
+     "fingerprint": "mf_3c9a07d2e41b5f60"
+    }
+   },
+   "limits": {
+    "max_n": 8,
+    "max_refs": 3,
+    "max_pixels": 16000000,
+    "max_input_bytes": 20971520
+   },
+   "slots": {
+    "gpu": 1,
+    "prefetch": 1,
+    "cpu": 2
+   },
+   "perf_model": {
+    "source": "history",
+    "classes": {
+     "t2i": {
+      "a1": 52.0,
+      "aN": 24.0,
+      "b": 2.4,
+      "samples": 140
+     },
+     "edit": {
+      "a1": 79.0,
+      "aN": 30.0,
+      "b": 2.5,
+      "samples": 35
+     }
+    },
+    "fallback": {
+     "overhead_s": 6.0,
+     "s_per_step": {
+      "turbo": 4.7,
+      "base": 4.9
+     },
+     "ref_mp": 0.59,
+     "calib": {
+      "generate": 1.0
+     },
+     "enhance_s": 110.0,
+     "upscale_s_per_mp": 3.0
+    }
+   },
+   "state": "ready",
+   "warm_eta_s": null,
+   "loaded_model": "qwen-image-2.1-viggle-Q8_0.gguf",
+   "running": [
+    {
+     "attempt_id": "att_01JA0000000000000000000001",
+     "phase": "running"
+    }
+   ],
+   "unacked": [
+    {
+     "attempt_id": "att_01JB0000000000000000000002"
+    }
+   ]
+  }
+ ],
+ "invalid": [
+  {
+   "why": "missing worker_id",
+   "msg": {
+    "v": 1,
+    "type": "hello",
+    "id": "m_01JA0000000000000000000005",
+    "ts": 1760000000.123,
+    "name": "PIXON-3060-01",
+    "version": "0.9.3",
+    "proto": 1,
+    "gpu": {
+     "name": "NVIDIA GeForce RTX 3060",
+     "vram_mb": 12288,
+     "driver": "581.57",
+     "compute_cap": "8.6"
+    },
+    "ram_mb": 65536,
+    "tier": "T2",
+    "model_files": [
+     {
+      "role": "diffusion",
+      "mode": "turbo",
+      "file": "qwen-image-2.1-viggle-Q8_0.gguf",
+      "bytes": 7612345678,
+      "manifest_id": "qwen-image-2.1-viggle-q8",
+      "sha256": "4be1000000000000000000000000000000000000000000000000000000000000"
+     },
+     {
+      "role": "diffusion",
+      "mode": "base",
+      "file": "qwen-image-2.1-Q4_K_M.gguf",
+      "bytes": 4604557984,
+      "manifest_id": "qwen-image-2.1-q4km",
+      "sha256": "77c0000000000000000000000000000000000000000000000000000000000000"
+     },
+     {
+      "role": "text_encoder",
+      "file": "qwen3vl_8b_int8_convrot.safetensors",
+      "bytes": 9350000000,
+      "manifest_id": "qwen3vl-8b-int8",
+      "sha256": "a9d3000000000000000000000000000000000000000000000000000000000000"
+     }
+    ],
+    "modes": [
+     "turbo",
+     "base"
+    ],
+    "upscalers": [
+     "realesrgan-x2",
+     "realesrgan-x4"
+    ],
+    "ops": [
+     "generate",
+     "enhance_prompt",
+     "refine",
+     "upscale",
+     "outpaint",
+     "pixelize",
+     "remove_bg",
+     "compose",
+     "fidelity"
+    ],
+    "presets": {
+     "qwen-image-2.1-turbo": {
+      "description": "Qwen-Image 2.1 + Viggle turbo, 5 step.",
+      "ops": [
+       {
+        "op": "generate",
+        "mode": "turbo",
+        "size": 1024
+       }
+      ],
+      "files": [
+       "qwen-image-2.1-viggle-Q8_0.gguf",
+       "qwen3vl_8b_int8_convrot.safetensors",
+       "qwen_image_2.1_vae_bf16.safetensors"
+      ],
+      "fingerprint": "mf_3c9a07d2e41b5f60"
+     }
+    },
+    "limits": {
+     "max_n": 8,
+     "max_refs": 3,
+     "max_pixels": 16000000,
+     "max_input_bytes": 20971520
+    },
+    "slots": {
+     "gpu": 1,
+     "prefetch": 1,
+     "cpu": 2
+    },
+    "perf_model": {
+     "source": "history",
+     "classes": {
+      "t2i": {
+       "a1": 52.0,
+       "aN": 24.0,
+       "b": 2.4,
+       "samples": 140
+      },
+      "edit": {
+       "a1": 79.0,
+       "aN": 30.0,
+       "b": 2.5,
+       "samples": 35
+      }
+     },
+     "fallback": {
+      "overhead_s": 6.0,
+      "s_per_step": {
+       "turbo": 4.7,
+       "base": 4.9
+      },
+      "ref_mp": 0.59,
+      "calib": {
+       "generate": 1.0
+      },
+      "enhance_s": 110.0,
+      "upscale_s_per_mp": 3.0
+     }
+    },
+    "state": "ready",
+    "warm_eta_s": null,
+    "loaded_model": "qwen-image-2.1-viggle-Q8_0.gguf",
+    "running": [
+     {
+      "attempt_id": "att_01JA0000000000000000000001",
+      "phase": "running"
+     }
+    ],
+    "unacked": [
+     {
+      "attempt_id": "att_01JB0000000000000000000002"
+     }
+    ]
+   }
+  },
+  {
+   "why": "gpu is not an object",
+   "msg": {
+    "v": 1,
+    "type": "hello",
+    "id": "m_01JA0000000000000000000005",
+    "ts": 1760000000.123,
+    "worker_id": "node_01J9Z0000000000000000000XX",
+    "name": "PIXON-3060-01",
+    "version": "0.9.3",
+    "proto": 1,
+    "gpu": "RTX 3060",
+    "ram_mb": 65536,
+    "tier": "T2",
+    "model_files": [
+     {
+      "role": "diffusion",
+      "mode": "turbo",
+      "file": "qwen-image-2.1-viggle-Q8_0.gguf",
+      "bytes": 7612345678,
+      "manifest_id": "qwen-image-2.1-viggle-q8",
+      "sha256": "4be1000000000000000000000000000000000000000000000000000000000000"
+     },
+     {
+      "role": "diffusion",
+      "mode": "base",
+      "file": "qwen-image-2.1-Q4_K_M.gguf",
+      "bytes": 4604557984,
+      "manifest_id": "qwen-image-2.1-q4km",
+      "sha256": "77c0000000000000000000000000000000000000000000000000000000000000"
+     },
+     {
+      "role": "text_encoder",
+      "file": "qwen3vl_8b_int8_convrot.safetensors",
+      "bytes": 9350000000,
+      "manifest_id": "qwen3vl-8b-int8",
+      "sha256": "a9d3000000000000000000000000000000000000000000000000000000000000"
+     }
+    ],
+    "modes": [
+     "turbo",
+     "base"
+    ],
+    "upscalers": [
+     "realesrgan-x2",
+     "realesrgan-x4"
+    ],
+    "ops": [
+     "generate",
+     "enhance_prompt",
+     "refine",
+     "upscale",
+     "outpaint",
+     "pixelize",
+     "remove_bg",
+     "compose",
+     "fidelity"
+    ],
+    "presets": {
+     "qwen-image-2.1-turbo": {
+      "description": "Qwen-Image 2.1 + Viggle turbo, 5 step.",
+      "ops": [
+       {
+        "op": "generate",
+        "mode": "turbo",
+        "size": 1024
+       }
+      ],
+      "files": [
+       "qwen-image-2.1-viggle-Q8_0.gguf",
+       "qwen3vl_8b_int8_convrot.safetensors",
+       "qwen_image_2.1_vae_bf16.safetensors"
+      ],
+      "fingerprint": "mf_3c9a07d2e41b5f60"
+     }
+    },
+    "limits": {
+     "max_n": 8,
+     "max_refs": 3,
+     "max_pixels": 16000000,
+     "max_input_bytes": 20971520
+    },
+    "slots": {
+     "gpu": 1,
+     "prefetch": 1,
+     "cpu": 2
+    },
+    "perf_model": {
+     "source": "history",
+     "classes": {
+      "t2i": {
+       "a1": 52.0,
+       "aN": 24.0,
+       "b": 2.4,
+       "samples": 140
+      },
+      "edit": {
+       "a1": 79.0,
+       "aN": 30.0,
+       "b": 2.5,
+       "samples": 35
+      }
+     },
+     "fallback": {
+      "overhead_s": 6.0,
+      "s_per_step": {
+       "turbo": 4.7,
+       "base": 4.9
+      },
+      "ref_mp": 0.59,
+      "calib": {
+       "generate": 1.0
+      },
+      "enhance_s": 110.0,
+      "upscale_s_per_mp": 3.0
+     }
+    },
+    "state": "ready",
+    "warm_eta_s": null,
+    "loaded_model": "qwen-image-2.1-viggle-Q8_0.gguf",
+    "running": [
+     {
+      "attempt_id": "att_01JA0000000000000000000001",
+      "phase": "running"
+     }
+    ],
+    "unacked": [
+     {
+      "attempt_id": "att_01JB0000000000000000000002"
+     }
+    ]
+   }
+  },
+  {
+   "why": "presets entry without fingerprint",
+   "msg": {
+    "v": 1,
+    "type": "hello",
+    "id": "m_01JA0000000000000000000005",
+    "ts": 1760000000.123,
+    "worker_id": "node_01J9Z0000000000000000000XX",
+    "name": "PIXON-3060-01",
+    "version": "0.9.3",
+    "proto": 1,
+    "gpu": {
+     "name": "NVIDIA GeForce RTX 3060",
+     "vram_mb": 12288,
+     "driver": "581.57",
+     "compute_cap": "8.6"
+    },
+    "ram_mb": 65536,
+    "tier": "T2",
+    "model_files": [
+     {
+      "role": "diffusion",
+      "mode": "turbo",
+      "file": "qwen-image-2.1-viggle-Q8_0.gguf",
+      "bytes": 7612345678,
+      "manifest_id": "qwen-image-2.1-viggle-q8",
+      "sha256": "4be1000000000000000000000000000000000000000000000000000000000000"
+     },
+     {
+      "role": "diffusion",
+      "mode": "base",
+      "file": "qwen-image-2.1-Q4_K_M.gguf",
+      "bytes": 4604557984,
+      "manifest_id": "qwen-image-2.1-q4km",
+      "sha256": "77c0000000000000000000000000000000000000000000000000000000000000"
+     },
+     {
+      "role": "text_encoder",
+      "file": "qwen3vl_8b_int8_convrot.safetensors",
+      "bytes": 9350000000,
+      "manifest_id": "qwen3vl-8b-int8",
+      "sha256": "a9d3000000000000000000000000000000000000000000000000000000000000"
+     }
+    ],
+    "modes": [
+     "turbo",
+     "base"
+    ],
+    "upscalers": [
+     "realesrgan-x2",
+     "realesrgan-x4"
+    ],
+    "ops": [
+     "generate",
+     "enhance_prompt",
+     "refine",
+     "upscale",
+     "outpaint",
+     "pixelize",
+     "remove_bg",
+     "compose",
+     "fidelity"
+    ],
+    "presets": {
+     "x": {
+      "ops": []
+     }
+    },
+    "limits": {
+     "max_n": 8,
+     "max_refs": 3,
+     "max_pixels": 16000000,
+     "max_input_bytes": 20971520
+    },
+    "slots": {
+     "gpu": 1,
+     "prefetch": 1,
+     "cpu": 2
+    },
+    "perf_model": {
+     "source": "history",
+     "classes": {
+      "t2i": {
+       "a1": 52.0,
+       "aN": 24.0,
+       "b": 2.4,
+       "samples": 140
+      },
+      "edit": {
+       "a1": 79.0,
+       "aN": 30.0,
+       "b": 2.5,
+       "samples": 35
+      }
+     },
+     "fallback": {
+      "overhead_s": 6.0,
+      "s_per_step": {
+       "turbo": 4.7,
+       "base": 4.9
+      },
+      "ref_mp": 0.59,
+      "calib": {
+       "generate": 1.0
+      },
+      "enhance_s": 110.0,
+      "upscale_s_per_mp": 3.0
+     }
+    },
+    "state": "ready",
+    "warm_eta_s": null,
+    "loaded_model": "qwen-image-2.1-viggle-Q8_0.gguf",
+    "running": [
+     {
+      "attempt_id": "att_01JA0000000000000000000001",
+      "phase": "running"
+     }
+    ],
+    "unacked": [
+     {
+      "attempt_id": "att_01JB0000000000000000000002"
+     }
+    ]
+   }
+  }
+ ]
+}

@@ -1,0 +1,49 @@
+{
+ "valid": [
+  {
+   "v": 1,
+   "type": "progress",
+   "id": "m_01JA0000000000000000000005",
+   "ts": 1760000000.123,
+   "attempt_id": "att_01JA0000000000000000000001",
+   "phase": "running",
+   "op_index": 0,
+   "op": "generate",
+   "step": 3,
+   "steps": 5,
+   "pct": 0.6
+  },
+  {
+   "v": 1,
+   "type": "progress",
+   "id": "m_01JA0000000000000000000005",
+   "ts": 1760000000.123,
+   "attempt_id": "att_01JA0000000000000000000001",
+   "phase": "fetching"
+  }
+ ],
+ "invalid": [
+  {
+   "why": "missing phase",
+   "msg": {
+    "v": 1,
+    "type": "progress",
+    "id": "m_01JA0000000000000000000005",
+    "ts": 1760000000.123,
+    "attempt_id": "att_01JA0000000000000000000001"
+   }
+  },
+  {
+   "why": "pct is not a number",
+   "msg": {
+    "v": 1,
+    "type": "progress",
+    "id": "m_01JA0000000000000000000005",
+    "ts": 1760000000.123,
+    "attempt_id": "att_01JA0000000000000000000001",
+    "phase": "running",
+    "pct": "half"
+   }
+  }
+ ]
+}

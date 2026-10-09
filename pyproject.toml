@@ -21,6 +21,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# `qis tray` (Windows notification-area monitor); Pillow is already a core dependency
+tray = ["pystray>=0.19"]
 dev = ["pytest>=8", "pytest-asyncio>=0.23", "ruff>=0.6", "openai>=1.40"]
 
 [project.scripts]

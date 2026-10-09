@@ -1,0 +1,5 @@
+{
+ "proto": 1,
+ "protocol_sha256": "8fa9bfae339fa06df37bd05d1da05bfa042a86b910be2f465f5c3788869ab402",
+ "note": "sha256 of qis/mesh/protocol.py after \\r\\n -> \\n; copy that file to app/hub/protocol.py"
+}

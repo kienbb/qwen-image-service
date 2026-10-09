@@ -1,0 +1,25 @@
+{
+ "valid": [
+  {
+   "v": 1,
+   "type": "error",
+   "id": "m_01JA0000000000000000000005",
+   "ts": 1760000000.123,
+   "reply_to": "m_01JA0000000000000000000007",
+   "code": "bad_message",
+   "message": "x"
+  }
+ ],
+ "invalid": [
+  {
+   "why": "missing code",
+   "msg": {
+    "v": 1,
+    "type": "error",
+    "id": "m_01JA0000000000000000000005",
+    "ts": 1760000000.123,
+    "reply_to": "m_1"
+   }
+  }
+ ]
+}

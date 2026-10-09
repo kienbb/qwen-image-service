@@ -3,6 +3,9 @@
 # With options (or set QIS_* environment variables before `irm | iex`):
 #   & ([scriptblock]::Create((irm https://<host>/install.ps1))) -Tier T1 -Yes -TunnelToken <token>
 #
+# As a worker of a QIS hub (no tunnel needed; the node connects out):
+#   & ([scriptblock]::Create((irm https://<host>/install.ps1))) -Yes -HubUrl https://qis.runnow.cc -JoinToken <token>
+#
 # It installs uv + Python into <Root>, fetches the app, then hands over to `qis setup` which detects the GPU,
 # lets you pick the model profile, installs ComfyUI + PyTorch + models, registers the Windows service and
 # (optionally) cloudflared. Re-running it is safe: finished steps are skipped.
@@ -18,6 +21,8 @@ param(
     [string]$AdminEmail = $env:QIS_ADMIN_EMAIL,
     [string]$AdminPassword = $env:QIS_ADMIN_PASSWORD,
     [string]$TunnelToken = $env:QIS_TUNNEL_TOKEN,
+    [string]$HubUrl = $env:QIS_HUB_URL,
+    [string]$JoinToken = $env:QIS_JOIN_TOKEN,
     [string]$PublicUrl = $env:QIS_PUBLIC_URL,
     [string]$HfToken = $env:HF_TOKEN,
     [string]$Repo = $(if ($env:QIS_REPO) { $env:QIS_REPO } else { "https://github.com/kienbb/qwen-image-service.git" }),
@@ -117,7 +122,7 @@ if (-not (Test-Path $py)) {
     & $uv venv --python 3.13 "$Root\.venv"
     if ($LASTEXITCODE -ne 0) { Fail "could not create the virtual environment" }
 }
-& $uv pip install --python $py -e $app
+& $uv pip install --python $py -e "${app}[tray]"
 if ($LASTEXITCODE -ne 0) { Fail "installing the application failed" }
 
 # ---------------------------------------------------------------- hand over to qis setup
@@ -128,7 +133,8 @@ if ($ModelsDir) { $argsList += @("--models-dir", $ModelsDir) }
 foreach ($r in $ReuseModels) { $argsList += @("--reuse-models", $r) }
 if ($AdminEmail) { $argsList += @("--admin-email", $AdminEmail) }
 if ($AdminPassword) { $argsList += @("--admin-password", $AdminPassword) }
-if ($TunnelToken) { $argsList += @("--tunnel-token", $TunnelToken) }
+if ($HubUrl -and $JoinToken) { $argsList += @("--hub-url", $HubUrl, "--join-token", $JoinToken) }
+elseif ($TunnelToken) { $argsList += @("--tunnel-token", $TunnelToken) }
 if ($PublicUrl) { $argsList += @("--public-url", $PublicUrl) }
 if ($HfToken) { $argsList += @("--hf-token", $HfToken) }
 if ($TorchIndex) { $argsList += @("--torch-index", $TorchIndex) }

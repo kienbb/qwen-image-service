@@ -1,0 +1,163 @@
+{
+ "valid": [
+  {
+   "v": 1,
+   "type": "result",
+   "id": "m_01JA0000000000000000000005",
+   "ts": 1760000075.0,
+   "attempt_id": "att_01JA0000000000000000000001",
+   "job_id": "job_01JA0000000000000000000003",
+   "outputs": [
+    {
+     "step": 0,
+     "op": "generate",
+     "images": [
+      {
+       "key": "out/2026/10/09/job_01JA0000000000000000000003/a1/o0-0.png",
+       "content_type": "image/png",
+       "bytes": 1534001,
+       "width": 1024,
+       "height": 1024,
+       "has_alpha": false,
+       "sha256": "9f2c000000000000000000000000000000000000000000000000000000000000"
+      }
+     ],
+     "extra": {},
+     "text": null,
+     "data": {}
+    }
+   ],
+   "raw": [],
+   "meta": {
+    "revised_prompt": "a knight with a wooden shield",
+    "seeds": [
+     42
+    ],
+    "degraded": false,
+    "cold_start": false,
+    "model_fingerprint": "mf_3c9a07d2e41b5f60"
+   },
+   "timings": {
+    "fetch_s": 0.8,
+    "local_queue_s": 0.0,
+    "run_s": 91.4,
+    "upload_s": 1.2,
+    "ops": [
+     {
+      "op": "generate",
+      "class": "edit",
+      "seconds": 91.4,
+      "estimate": 92.0,
+      "kind": "gpu",
+      "calls": [
+       {
+        "seconds": 91.4,
+        "sample_s": 13.1
+       }
+      ]
+     }
+    ]
+   },
+   "worker_version": "0.9.3"
+  }
+ ],
+ "invalid": [
+  {
+   "why": "missing outputs",
+   "msg": {
+    "v": 1,
+    "type": "result",
+    "id": "m_01JA0000000000000000000005",
+    "ts": 1760000075.0,
+    "attempt_id": "att_01JA0000000000000000000001",
+    "job_id": "job_01JA0000000000000000000003",
+    "raw": [],
+    "meta": {
+     "revised_prompt": "a knight with a wooden shield",
+     "seeds": [
+      42
+     ],
+     "degraded": false,
+     "cold_start": false,
+     "model_fingerprint": "mf_3c9a07d2e41b5f60"
+    },
+    "timings": {
+     "fetch_s": 0.8,
+     "local_queue_s": 0.0,
+     "run_s": 91.4,
+     "upload_s": 1.2,
+     "ops": [
+      {
+       "op": "generate",
+       "class": "edit",
+       "seconds": 91.4,
+       "estimate": 92.0,
+       "kind": "gpu",
+       "calls": [
+        {
+         "seconds": 91.4,
+         "sample_s": 13.1
+        }
+       ]
+      }
+     ]
+    },
+    "worker_version": "0.9.3"
+   }
+  },
+  {
+   "why": "image without key",
+   "msg": {
+    "v": 1,
+    "type": "result",
+    "id": "m_01JA0000000000000000000005",
+    "ts": 1760000075.0,
+    "attempt_id": "att_01JA0000000000000000000001",
+    "job_id": "job_01JA0000000000000000000003",
+    "outputs": [
+     {
+      "step": 0,
+      "op": "generate",
+      "images": [
+       {
+        "bytes": 1
+       }
+      ]
+     }
+    ],
+    "raw": [],
+    "meta": {
+     "revised_prompt": "a knight with a wooden shield",
+     "seeds": [
+      42
+     ],
+     "degraded": false,
+     "cold_start": false,
+     "model_fingerprint": "mf_3c9a07d2e41b5f60"
+    },
+    "timings": {
+     "fetch_s": 0.8,
+     "local_queue_s": 0.0,
+     "run_s": 91.4,
+     "upload_s": 1.2,
+     "ops": [
+      {
+       "op": "generate",
+       "class": "edit",
+       "seconds": 91.4,
+       "estimate": 92.0,
+       "kind": "gpu",
+       "calls": [
+        {
+         "seconds": 91.4,
+         "sample_s": 13.1
+        }
+       ]
+      }
+     ]
+    },
+    "worker_version": "0.9.3"
+   }
+  }
+ ]
+}

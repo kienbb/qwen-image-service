@@ -1,0 +1,41 @@
+{
+ "valid": [
+  {
+   "v": 1,
+   "type": "upload_grant",
+   "id": "m_01JA0000000000000000000005",
+   "ts": 1760000000.123,
+   "attempt_id": "att_01JA0000000000000000000001",
+   "files": [
+    {
+     "name": "o0-0.png",
+     "key": "out/2026/10/09/job_01JA0000000000000000000003/a1/o0-0.png",
+     "url": "https://r2.test/put?sig=1",
+     "method": "PUT",
+     "headers": {
+      "Content-Type": "image/png"
+     },
+     "expires_at": 1760000900.0
+    }
+   ]
+  }
+ ],
+ "invalid": [
+  {
+   "why": "grant without url",
+   "msg": {
+    "v": 1,
+    "type": "upload_grant",
+    "id": "m_01JA0000000000000000000005",
+    "ts": 1760000000.123,
+    "attempt_id": "att_01JA0000000000000000000001",
+    "files": [
+     {
+      "name": "o0-0.png",
+      "key": "k"
+     }
+    ]
+   }
+  }
+ ]
+}

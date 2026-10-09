@@ -78,6 +78,10 @@ class Node:
         self.jobs = JobService(self.db, self.settings, self.events, self.executor, self.storage, self.node_id)
         self._tasks: list[asyncio.Task] = []
         self.gpu_info: dict = {}
+        self.worker = None  # WorkerService when [worker] enabled = true (docs/MESH.md)
+        if cfg.worker.enabled:
+            from .mesh.worker import WorkerService
+            self.worker = WorkerService(self)
         if not self.db.one("SELECT id FROM nodes WHERE id=?", (self.node_id,)):
             self.db.insert("nodes", {"id": self.node_id, "name": self.settings.current.node.name or hardware.hostname(),
                                      "public_url": cfg.server.public_url, "pubkey": self.identity["public_key"],
@@ -102,6 +106,8 @@ class Node:
         if self.start_comfy:
             await self.supervisor.start()
         await self.jobs.start()
+        if self.worker:
+            await self.worker.start()
         self._tasks.append(asyncio.create_task(self._housekeeping()))
         self._tasks.append(asyncio.create_task(self._gpu_sampler()))
 
@@ -111,6 +117,8 @@ class Node:
         for t in self._tasks:
             with contextlib.suppress(BaseException):
                 await t
+        if self.worker:   # before the engine goes away, so running jobs can finish and the hub hears `bye`
+            await self.worker.stop()
         await self.jobs.stop()
         if self.start_comfy:
             await self.supervisor.stop()
@@ -177,7 +185,13 @@ class Node:
     def status(self) -> dict:
         return {"node_id": self.node_id, "name": self.name, "version": __version__, "uptime_s": round(time.time() - self.started_at),
                 "comfy": self.supervisor.status(), "gpu": {**self.supervisor.gpu(), **self.gpu_info},
-                "queue": self.jobs.queue_stats(), "loaded_model": self.executor.loaded_model}
+                "queue": self.jobs.queue_stats(), "loaded_model": self.executor.loaded_model,
+                "worker": self.worker.status() if self.worker else {"enabled": False, "link": "disabled"}}
+
+    @property
+    def worker_blocks_local_jobs(self) -> bool:
+        """Worker mode: the job-creating /v1 routes answer 409 worker_mode (MESH.md section 1.2 point 3)."""
+        return self.cfg.worker.enabled and not self.cfg.worker.accept_local_jobs
 
     def info(self) -> dict:
         """GET /v1/node/info: the capability contract other nodes of a mesh will read (versioned)."""

@@ -159,6 +159,43 @@ async def status(user: dict = Depends(actor()), node: Node = Depends(get_node)):
     return st
 
 
+# ---------------------------------------------------------------- worker mode (docs/MESH.md section 8)
+def _worker(node: Node):
+    if node.worker is None:
+        raise AuthError(409, "worker_mode_off", "this node is not in worker mode ([worker] enabled = false)")
+    return node.worker
+
+
+@router.get("/worker")
+async def worker_status(user: dict = Depends(actor()), node: Node = Depends(get_node)):
+    return node.worker.status() if node.worker else {"enabled": False, "link": "disabled"}
+
+
+@router.post("/worker/drain")
+async def worker_drain(request: Request, wait: bool = False, timeout: float = Query(3600, ge=1, le=86400),
+                       user: dict = Depends(actor("operator")), node: Node = Depends(get_node)):
+    """Stop taking jobs, finish the running ones, then disconnect from the hub (`wait` blocks until that happened)."""
+    res = await _worker(node).drain(wait=wait, timeout=timeout)
+    node.db.audit(user["username"], "worker.drain", node.node_id, ip=client_ip(request))
+    return res
+
+
+@router.post("/worker/resume")
+async def worker_resume(request: Request, user: dict = Depends(actor("operator")), node: Node = Depends(get_node)):
+    res = await _worker(node).resume()
+    node.db.audit(user["username"], "worker.resume", node.node_id, ip=client_ip(request))
+    return res
+
+
+@router.post("/worker/leave")
+async def worker_leave(request: Request, timeout: float = Query(120, ge=1, le=3600),
+                       user: dict = Depends(actor("operator")), node: Node = Depends(get_node)):
+    """Drain, send `bye(leave)` and stay disconnected (`qis worker leave` then turns worker mode off)."""
+    res = await _worker(node).leave(timeout=timeout)
+    node.db.audit(user["username"], "worker.leave", node.node_id, ip=client_ip(request))
+    return res
+
+
 @router.get("/stats")
 async def stats(hours: int = Query(24, ge=1, le=720), bucket_min: int = Query(10, ge=1, le=1440),
                 user: dict = Depends(actor()), node: Node = Depends(get_node)):

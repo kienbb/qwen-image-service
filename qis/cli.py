@@ -30,11 +30,11 @@ def _setup_logging(cfg: Config, verbose: bool = False) -> None:
         logging.getLogger(noisy).setLevel(logging.WARNING)
 
 
-def cmd_serve(a) -> None:
+def cmd_serve(a, cfg: Config | None = None) -> None:
     import uvicorn
 
     from .app import create_app
-    cfg = load_config(a.config)
+    cfg = cfg or load_config(a.config)
     if a.host:
         cfg.server.host = a.host
     if a.port:
@@ -182,6 +182,137 @@ def cmd_benchmark(a) -> None:
     run_benchmark(load_config(a.config), a.url, a.key, a.images, apply=a.apply)
 
 
+def cmd_tray(a) -> None:
+    from .tray import cmd_tray as run
+    run(a)
+
+
+# ------------------------------------------------------------------ qis worker ... (docs/MESH.md section 8.1)
+def _worker_ctx(a) -> tuple[Path, Path, Config]:
+    """(install root, config.toml, config) for the worker commands: --config wins, else <root>/config/config.toml."""
+    if a.config:
+        cfg_path = Path(a.config)
+        root = cfg_path.resolve().parent.parent
+    else:
+        from .setup import default_root
+        root = Path(a.root).resolve() if a.root else default_root()
+        cfg_path = root / "config" / "config.toml"
+    return root, cfg_path, load_config(cfg_path)
+
+
+def _restart(root: Path, no_restart: bool) -> None:
+    if no_restart:
+        print("not restarting (--no-restart): restart the service for the change to take effect")
+        return
+    from .setup import service_cmd, service_installed
+    try:
+        if not service_installed(root):
+            print("the qis service is not installed: start the node with `qis serve` (or `qis worker run`)")
+            return
+        rc = service_cmd(root, "restart")
+        print("service restarted" if rc == 0 else f"service restart failed (exit {rc}): restart it manually")
+    except (OSError, ValueError) as e:
+        print(f"could not restart the service ({e}): restart it manually")
+
+
+def _admin_headers(root: Path) -> dict:
+    """Authorization for the local admin API: the tray's admin key, created on first use."""
+    from .tray import ensure_key, key_path, read_key
+    key = read_key(key_path(root))
+    if not key:
+        try:
+            key = ensure_key(root)
+        except Exception as e:
+            sys.exit(f"no admin key for the local gateway ({e}); run `qis tray --init-key` as administrator")
+    return {"Authorization": f"Bearer {key}"}
+
+
+def _local_call(a, method: str, path: str, *, timeout: float = 15, params: dict | None = None):
+    import httpx
+    root, _, cfg = _worker_ctx(a)
+    base = f"http://127.0.0.1:{cfg.server.port}"
+    try:
+        r = httpx.request(method, base + path, headers=_admin_headers(root), params=params, timeout=timeout)
+    except httpx.HTTPError as e:
+        sys.exit(f"gateway not reachable at {base}: {e}")
+    if r.status_code >= 400:
+        try:
+            msg = r.json()["error"]["message"]
+        except (ValueError, KeyError, TypeError):
+            msg = r.text[:200]
+        sys.exit(f"{path}: HTTP {r.status_code}: {msg}")
+    return r.json()
+
+
+def _print_worker(w: dict) -> None:
+    if not w.get("enabled"):
+        print("worker mode is off ([worker] enabled = false)")
+        return
+    print(f"link      : {w.get('link')}  ({w.get('state', '')})")
+    print(f"hub       : {w.get('hub_url')}")
+    print(f"worker id : {w.get('worker_id')}  name: {w.get('name')}")
+    if w.get("retry_in_s") is not None:
+        print(f"retry in  : {w['retry_in_s']} s")
+    if w.get("last_error"):
+        print(f"last error: {w['last_error']}")
+    for r in w.get("running") or []:
+        print(f"running   : {r.get('job_id')} {r.get('phase')} {round((r.get('pct') or 0) * 100)}%")
+    print(f"session   : {w.get('session_done', 0)} done, {w.get('session_failed', 0)} failed")
+
+
+def cmd_worker(a) -> None:
+    import os
+    cmd = a.wcmd
+    if cmd == "join":
+        from .mesh.join import join
+        root, cfg_path, _ = _worker_ctx(a)
+        token = a.token or os.environ.get("QIS_JOIN_TOKEN") or (getpass.getpass("join token: ") if sys.stdin.isatty() else "")
+        try:
+            url = join(cfg_path, a.hub_url, token, a.name)
+        except ValueError as e:
+            sys.exit(str(e))
+        print(f"worker mode on: {url}")
+        print(f"token stored in {cfg_path.parent / 'worker.token'}")
+        _restart(root, a.no_restart)
+    elif cmd == "leave":
+        from .mesh.join import leave
+        root, cfg_path, cfg = _worker_ctx(a)
+        if cfg.worker.enabled:
+            try:  # let a running gateway finish its jobs and say bye(leave) first
+                _local_call(a, "POST", "/admin/api/worker/leave", timeout=a.timeout + 15, params={"timeout": a.timeout})
+                print("drained and left the hub")
+            except SystemExit as e:
+                print(f"could not drain through the gateway ({e}); turning worker mode off anyway")
+        leave(cfg_path)
+        print("worker mode off")
+        _restart(root, a.no_restart)
+    elif cmd == "status":
+        w = _local_call(a, "GET", "/admin/api/status").get("worker") or {}
+        if a.json:
+            print(json.dumps(w, indent=1))
+        else:
+            _print_worker(w)
+        sys.exit(0 if w.get("link") in ("connected", "draining", "paused") else 3)
+    elif cmd == "drain":
+        w = _local_call(a, "POST", "/admin/api/worker/drain", timeout=(a.timeout + 15) if a.wait else 15,
+                        params={"wait": "true" if a.wait else "false", "timeout": a.timeout})
+        _print_worker(w)
+    elif cmd == "resume":
+        _print_worker(_local_call(a, "POST", "/admin/api/worker/resume"))
+    elif cmd == "run":
+        cfg = load_config(a.config)
+        cfg.worker.enabled = True
+        if a.hub:
+            cfg.worker.hub_url = a.hub
+        elif os.environ.get("QIS_HUB_URL"):
+            cfg.worker.hub_url = os.environ["QIS_HUB_URL"]
+        if a.token:
+            cfg.worker.token = a.token
+        if a.name:
+            cfg.worker.name = a.name
+        cmd_serve(a, cfg)
+
+
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser("qis", description=f"Qwen Image Service {__version__}")
     ap.add_argument("--version", action="version", version=__version__)
@@ -243,6 +374,45 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--images", type=int, default=3)
     p.add_argument("--apply", action="store_true", help="write perf + max_pending into the settings")
     p.set_defaults(fn=cmd_benchmark)
+
+    p = sub.add_parser("tray", help="notification-area monitor: status window, start / stop / restart the service")
+    p.add_argument("--root", help="install root (default: derived from the venv)")
+    p.add_argument("--url", help="gateway URL (default: http://127.0.0.1:<port from config>)")
+    p.add_argument("--hidden", action="store_true", help="start in the tray without opening the status window")
+    p.add_argument("--init-key", action="store_true", help="create the tray's admin:* key (config/tray.key) and exit")
+    p.set_defaults(fn=cmd_tray)
+
+    p = sub.add_parser("worker", help="worker mode: join / leave a QIS hub, status, drain, resume, run")
+    wsub = p.add_subparsers(dest="wcmd", required=True)
+
+    def wcommon(p):
+        p.add_argument("--config", help="config.toml (default: <root>/config/config.toml)")
+        p.add_argument("--root", help="install root (default: derived from the venv)")
+        p.set_defaults(fn=cmd_worker)
+        return p
+
+    w = wcommon(wsub.add_parser("join", help="connect this node to a hub: writes [worker] + config/worker.token, restarts"))
+    w.add_argument("hub_url", help="https://qis.runnow.cc (or wss://host/worker/ws, ws://host:8101/worker/ws)")
+    w.add_argument("--token", help="join token (default: $QIS_JOIN_TOKEN, else prompt)")
+    w.add_argument("--name", help="worker name shown on the hub (default: hostname)")
+    w.add_argument("--no-restart", action="store_true")
+    w = wcommon(wsub.add_parser("leave", help="drain, tell the hub bye, turn worker mode off, restart"))
+    w.add_argument("--timeout", type=float, default=120, help="seconds to wait for running jobs")
+    w.add_argument("--no-restart", action="store_true")
+    w = wcommon(wsub.add_parser("status", help="hub connection state (exit 0 when connected)"))
+    w.add_argument("--json", action="store_true")
+    w = wcommon(wsub.add_parser("drain", help="stop taking jobs, finish the running ones, disconnect"))
+    w.add_argument("--wait", action="store_true", help="block until drained")
+    w.add_argument("--timeout", type=float, default=3600)
+    wcommon(wsub.add_parser("resume", help="reconnect / take jobs again after a drain"))
+    w = wcommon(wsub.add_parser("run", help="run the gateway in the foreground in worker mode (dev, fake hub)"))
+    w.add_argument("--hub", help="hub URL (default: $QIS_HUB_URL, else [worker].hub_url)")
+    w.add_argument("--token", help="join token (default: $QIS_JOIN_TOKEN, else config/worker.token)")
+    w.add_argument("--name")
+    w.add_argument("--host")
+    w.add_argument("--port", type=int)
+    w.add_argument("--attach", action="store_true", help="use an already running ComfyUI")
+    w.add_argument("-v", "--verbose", action="store_true")
 
     try:
         from .setup import register_cli

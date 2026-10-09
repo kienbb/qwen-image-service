@@ -1,0 +1,34 @@
+{
+ "valid": [
+  {
+   "v": 1,
+   "type": "welcome",
+   "id": "m_01JA0000000000000000000005",
+   "ts": 1760000000.123,
+   "session_id": "ses_01JA0000000000000000000006",
+   "heartbeat_s": 10,
+   "lease_ttl_s": 45,
+   "accept_timeout_s": 10,
+   "paused": false,
+   "resume": {
+    "att_01JA0000000000000000000001": "keep",
+    "att_01JB0000000000000000000002": "drop"
+   },
+   "limits": {
+    "max_frame_bytes": 2097152
+   }
+  }
+ ],
+ "invalid": [
+  {
+   "why": "missing session_id",
+   "msg": {
+    "v": 1,
+    "type": "welcome",
+    "id": "m_01JA0000000000000000000005",
+    "ts": 1760000000.123,
+    "heartbeat_s": 10
+   }
+  }
+ ]
+}

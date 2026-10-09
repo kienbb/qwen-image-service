@@ -1,0 +1,33 @@
+{
+ "valid": [
+  {
+   "v": 1,
+   "type": "state",
+   "id": "m_01JA0000000000000000000005",
+   "ts": 1760000000.123,
+   "state": "warming",
+   "reason": "engine",
+   "warm_eta_s": 180.0
+  },
+  {
+   "v": 1,
+   "type": "state",
+   "id": "m_01JA0000000000000000000005",
+   "ts": 1760000000.123,
+   "state": "draining",
+   "reason": "operator"
+  }
+ ],
+ "invalid": [
+  {
+   "why": "missing state",
+   "msg": {
+    "v": 1,
+    "type": "state",
+    "id": "m_01JA0000000000000000000005",
+    "ts": 1760000000.123,
+    "reason": "x"
+   }
+  }
+ ]
+}

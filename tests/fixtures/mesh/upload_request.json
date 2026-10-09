@@ -1,0 +1,74 @@
+{
+ "valid": [
+  {
+   "v": 1,
+   "type": "upload_request",
+   "id": "m_01JA0000000000000000000005",
+   "ts": 1760000000.123,
+   "attempt_id": "att_01JA0000000000000000000001",
+   "files": [
+    {
+     "name": "o0-0.png",
+     "content_type": "image/png",
+     "bytes": 1534001
+    },
+    {
+     "name": "o1-0-preview.png",
+     "content_type": "image/png",
+     "bytes": 4000
+    },
+    {
+     "name": "raw-0.png",
+     "content_type": "image/png",
+     "bytes": 1500000
+    }
+   ]
+  }
+ ],
+ "invalid": [
+  {
+   "why": "file name with upper case and path",
+   "msg": {
+    "v": 1,
+    "type": "upload_request",
+    "id": "m_01JA0000000000000000000005",
+    "ts": 1760000000.123,
+    "attempt_id": "att_01JA0000000000000000000001",
+    "files": [
+     {
+      "name": "../Out.PNG",
+      "content_type": "image/png",
+      "bytes": 1
+     }
+    ]
+   }
+  },
+  {
+   "why": "file name with unsupported extension",
+   "msg": {
+    "v": 1,
+    "type": "upload_request",
+    "id": "m_01JA0000000000000000000005",
+    "ts": 1760000000.123,
+    "attempt_id": "att_01JA0000000000000000000001",
+    "files": [
+     {
+      "name": "o0-0.gif",
+      "content_type": "image/gif",
+      "bytes": 1
+     }
+    ]
+   }
+  },
+  {
+   "why": "missing files",
+   "msg": {
+    "v": 1,
+    "type": "upload_request",
+    "id": "m_01JA0000000000000000000005",
+    "ts": 1760000000.123,
+    "attempt_id": "att_01JA0000000000000000000001"
+   }
+  }
+ ]
+}

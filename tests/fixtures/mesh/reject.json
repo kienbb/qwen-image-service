@@ -1,0 +1,25 @@
+{
+ "valid": [
+  {
+   "v": 1,
+   "type": "reject",
+   "id": "m_01JA0000000000000000000005",
+   "ts": 1760000000.123,
+   "attempt_id": "att_01JA0000000000000000000001",
+   "reason": "preset_unknown",
+   "message": "no such preset"
+  }
+ ],
+ "invalid": [
+  {
+   "why": "missing reason",
+   "msg": {
+    "v": 1,
+    "type": "reject",
+    "id": "m_01JA0000000000000000000005",
+    "ts": 1760000000.123,
+    "attempt_id": "att_01JA0000000000000000000001"
+   }
+  }
+ ]
+}

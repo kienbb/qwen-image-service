@@ -13,7 +13,8 @@ router = APIRouter(tags=["system"])
 
 @router.get("/healthz")
 async def healthz(node: Node = Depends(get_node)):
-    return {"status": "ok", "version": __version__, "node_id": node.node_id}
+    return {"status": "ok", "version": __version__, "node_id": node.node_id,
+            "worker": node.worker.health() if node.worker else {"enabled": False}}
 
 
 @router.get("/readyz")

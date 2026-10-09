@@ -1,6 +1,7 @@
 """Fixtures: a fake ComfyUI and a real gateway (uvicorn in a thread) talking to it over HTTP."""
 from __future__ import annotations
 
+import asyncio
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -15,6 +16,7 @@ from qis.config import Config
 from qis.node import Node
 
 from .fake_comfy import FakeComfy, free_port
+from .fake_hub import FakeHub
 
 
 @pytest.fixture(scope="session")
@@ -84,3 +86,62 @@ def make_gateway(tmp_path, fake):
 @pytest.fixture
 def gw(make_gateway):
     return make_gateway()
+
+
+# ---------------------------------------------------------------- worker mode (docs/MESH.md 10.1)
+@pytest.fixture
+async def hub():
+    h = FakeHub()
+    await h.start()
+    yield h
+    await h.stop()
+
+
+@pytest.fixture
+async def make_worker(tmp_path, fake, hub):
+    """Async factory for a Node in worker mode wired to the FakeHub and the fake ComfyUI, all in the test's loop."""
+    from qis.config import WorkerCfg
+    from qis.mesh.link import Timing
+    nodes: list[Node] = []
+
+    async def make(*, start: bool = True, timing: Timing | None = None, config=None, **worker) -> Node:
+        fake.run_s, fake.slow_s, fake.oom_left, fake.down = 0.3, 3.0, 0, False
+        cfg = Config()
+        cfg.paths.data = str(tmp_path / f"w{len(nodes)}")
+        cfg.comfy.manage = False
+        cfg.comfy.port = fake.port
+        cfg.comfy.warmup = False
+        cfg.comfy.health_interval_s = 0.2
+        cfg.worker = WorkerCfg(**{"enabled": True, "hub_url": hub.ws_url, "token": "qisw_test", "heartbeat_s": 1, **worker})
+        if config:
+            config(cfg)
+        node = Node(cfg, cpu_pool=ThreadPoolExecutor(2), start_comfy=False)
+        node.executor.ready_timeout_s = 5
+
+        async def boot(node=node):
+            """Engine first, then the node: the worker's first `hello` then says `ready` (it would say `warming`)."""
+            await node.supervisor.start()
+            for _ in range(200):
+                if node.supervisor.ready.is_set() and node.supervisor.warm:
+                    break
+                await asyncio.sleep(0.05)
+            await node.start()
+        node.boot = boot
+        svc = node.worker
+        if svc is not None:     # shrink every wait of the protocol so the tests run in seconds
+            svc.shutdown_grace_s = 0.5
+            svc.link.t = timing or Timing(heartbeat_s=0.3, restart_delay=(0.05, 0.2), auth_retry_s=0.4, replaced_wait_s=0.4,
+                                          outdated_retry_s=0.4, backoff_cap_s=0.3, welcome_timeout_s=3)
+            svc.runner.put_retry_delays = (0.05, 0.05, 0.05)
+            svc.runner.fetch_retry_delays = (0.05, 0.05)
+            svc.runner.regrant_s = 0.3
+            svc.runner.grant_wait_s = 2
+        nodes.append(node)
+        if start:
+            await boot()
+        return node
+
+    yield make
+    for n in nodes:
+        await n.stop()
+        await n.supervisor.stop()

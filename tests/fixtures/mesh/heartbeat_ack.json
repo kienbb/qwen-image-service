@@ -1,0 +1,23 @@
+{
+ "valid": [
+  {
+   "v": 1,
+   "type": "heartbeat_ack",
+   "id": "m_01JA0000000000000000000005",
+   "ts": 1760000000.123,
+   "server_time": 1760000010.2
+  }
+ ],
+ "invalid": [
+  {
+   "why": "server_time is not a number",
+   "msg": {
+    "v": 1,
+    "type": "heartbeat_ack",
+    "id": "m_01JA0000000000000000000005",
+    "ts": 1760000000.123,
+    "server_time": "now"
+   }
+  }
+ ]
+}

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -19,6 +20,9 @@ from .config import Config
 from .node import Node
 
 log = logging.getLogger("qis")
+
+# POST routes that create jobs; blocked while the node is a worker (the hub is the only front door)
+JOB_ROUTES = re.compile(r"^/(v1/images/[^/]+|v1/jobs|v1/jobs/[^/]+/retry|v1/tools/[^/]+|mcp)/?$")
 
 
 def web_dist() -> Path | None:
@@ -54,6 +58,10 @@ def create_app(cfg: Config, node: Node | None = None) -> FastAPI:
         if length and length.isdigit() and int(length) > limit:
             from .api.common import err
             return err(413, f"request body is larger than {limit // 1024 // 1024} MB", "body_too_large")
+        if request.method == "POST" and node.worker_blocks_local_jobs and JOB_ROUTES.match(request.url.path):
+            from .api.common import err
+            return err(409, "this node is a worker: submit jobs to the hub (set worker.accept_local_jobs to allow local jobs)",
+                       "worker_mode")
         t = time.monotonic()
         response = await call_next(request)
         response.headers["X-Request-Id"] = rid

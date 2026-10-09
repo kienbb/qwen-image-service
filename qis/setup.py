@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import secrets
 import shutil
 import subprocess
@@ -248,6 +249,11 @@ def service_install(root: Path, cfg_path: Path, user: str | None = None) -> None
             subprocess.run([str(exe), "stop"], capture_output=True)
             subprocess.run([str(exe), "refresh"], capture_output=True)
         subprocess.run([str(exe), "start"], check=True)
+        try:  # lets `qis tray` (running as this user, not elevated) start / stop the service without UAC
+            if service_grant(current_user_sid()):
+                say("   granted start/stop/query on the service to the current user (for `qis tray`)")
+        except (OSError, RuntimeError, subprocess.SubprocessError) as e:
+            say(f"   ! could not grant service control to the current user ({e}); run `qis service grant` as admin")
     else:
         user = user or os.environ.get("SUDO_USER") or "root"
         unit = f"""[Unit]
@@ -298,6 +304,68 @@ def service_cmd(root: Path, action: str) -> int:
         return subprocess.run([str(exe), action]).returncode
     mapping = {"status": ["systemctl", "status", SERVICE, "--no-pager"], "uninstall": ["systemctl", "disable", "--now", SERVICE]}
     return subprocess.run(mapping.get(action, ["systemctl", action, SERVICE])).returncode
+
+
+# Service ACL (Windows): by default only admins may start / stop a service. We append one allow ACE for the user who
+# ran the installer (installer elevation keeps the same account, so its SID is the operator's), instead of a broad
+# group like Authenticated Users. Rights: RP start, WP stop, LC query status, RC read the security descriptor.
+SERVICE_RIGHTS = "RPWPLCRC"
+_DACL = re.compile(r"D:([A-Z]*)((?:\([^()]*\))*)")
+
+
+def _rights(mask: str) -> set[str]:
+    return {mask[i:i + 2] for i in range(0, len(mask), 2)}
+
+
+def merge_service_ace(sddl: str, sid: str, rights: str = SERVICE_RIGHTS) -> str:
+    """`sddl` (as printed by `sc sdshow`) with an allow ACE for `sid` appended to its DACL; unchanged when an allow
+    ACE for that SID already grants at least `rights`. Pure string logic, so it is unit tested."""
+    sddl = "".join(sddl.split())  # sdshow prints a leading blank line
+    m = _DACL.search(sddl)
+    if not m:
+        raise ValueError(f"no DACL in security descriptor {sddl!r}")
+    for ace in re.findall(r"\(([^()]*)\)", m.group(2)):
+        f = ace.split(";")
+        if len(f) >= 6 and f[0] == "A" and f[5].upper() == sid.upper() and _rights(rights) <= _rights(f[2].upper()):
+            return sddl
+    return f"{sddl[:m.end()]}(A;;{rights};;;{sid}){sddl[m.end():]}"
+
+
+def current_user_sid() -> str:
+    out = subprocess.run(["whoami", "/user", "/fo", "csv", "/nh"], capture_output=True, text=True, check=True).stdout
+    sid = out.strip().rsplit(",", 1)[-1].strip('"')
+    if not sid.startswith("S-1-"):
+        raise RuntimeError(f"unexpected whoami output {out!r}")
+    return sid
+
+
+def account_sid(name: str) -> str:
+    """SID for an account name (DOMAIN\\user, user), or pass-through for a SID / SDDL alias such as AU or IU."""
+    if name.upper().startswith("S-1-") or re.fullmatch(r"[A-Z]{2}", name):
+        return name
+    account = name.replace("'", "")
+    ps = f"(New-Object System.Security.Principal.NTAccount('{account}'))" \
+         ".Translate([System.Security.Principal.SecurityIdentifier]).Value"
+    r = subprocess.run(["powershell", "-NoProfile", "-Command", ps], capture_output=True, text=True)
+    sid = r.stdout.strip()
+    if r.returncode or not sid.startswith("S-1-"):
+        raise RuntimeError(f"unknown account {name!r}")
+    return sid
+
+
+def service_grant(sid: str) -> bool:
+    """Let `sid` start / stop / query the service without elevation (`sc sdset`, needs admin). True when changed."""
+    cur = subprocess.run(["sc.exe", "sdshow", SERVICE], capture_output=True, text=True)
+    if cur.returncode:
+        raise RuntimeError(f"sc sdshow {SERVICE} failed: {(cur.stdout + cur.stderr).strip()}")
+    sddl = "".join(cur.stdout.split())
+    new = merge_service_ace(sddl, sid)
+    if new == sddl:
+        return False
+    r = subprocess.run(["sc.exe", "sdset", SERVICE, new], capture_output=True, text=True)
+    if r.returncode:
+        raise RuntimeError(f"sc sdset failed (run as administrator): {(r.stdout + r.stderr).strip()}")
+    return True
 
 
 def service_uninstall(root: Path) -> None:
@@ -433,6 +501,18 @@ def cmd_setup(a) -> None:
     if not keys.list():
         api_key, _ = keys.create("default")
     bench_key, bench_row = keys.create("installer-benchmark", scopes=["admin:*"])
+    if IS_WIN:
+        from .tray import ensure_key
+        try:
+            ensure_key(root, cfg)
+            say("   tray key: config/tray.key (admin:* key used by `qis tray`)")
+        except Exception as e:  # the tray offers to create it later
+            say(f"   ! could not create the tray key ({e})")
+
+    hub_url = a.hub_url or os.environ.get("QIS_HUB_URL")
+    join_token = a.join_token or os.environ.get("QIS_JOIN_TOKEN")
+    if hub_url and a.tunnel_token:
+        say("   a worker is not reachable from outside: --tunnel-token is ignored because --hub-url is set")
 
     step("7/8 Service")
     if a.no_service:
@@ -440,7 +520,7 @@ def cmd_setup(a) -> None:
     else:
         service_install(root, cfg_path, a.service_user)
         say(f"   service '{SERVICE}' installed and started")
-        if a.tunnel_token:
+        if a.tunnel_token and not hub_url:
             cloudflared_install(root, a.tunnel_token)
             say(f"   cloudflared installed: point the tunnel's public hostname at http://127.0.0.1:{port}")
 
@@ -458,6 +538,18 @@ def cmd_setup(a) -> None:
         say("   the node did not become ready in time; check `qis doctor` and data/logs/")
     keys.revoke(bench_row["id"])
 
+    if hub_url:   # last, so the benchmark above could still use the local /v1 routes (worker mode closes them)
+        step("Worker mode")
+        if not join_token:
+            say("   --hub-url needs --join-token (or $QIS_JOIN_TOKEN); skipped")
+        else:
+            from .mesh.join import join
+            url = join(cfg_path, hub_url, join_token)
+            say(f"   joined {url}; token stored in {cfg_path.parent / 'worker.token'}")
+            if not a.no_service:
+                service_cmd(root, "restart")
+                say("   service restarted in worker mode (`qis worker status` shows the connection)")
+
     exe = root / ".venv" / ("Scripts" if IS_WIN else "bin") / "qis"
     say("\n" + "=" * 70)
     say(f" Dashboard : http://127.0.0.1:{port}/admin/" + (f"   public: {a.public_url}/admin/" if a.public_url else ""))
@@ -469,7 +561,11 @@ def cmd_setup(a) -> None:
         say(f"   curl http://127.0.0.1:{port}/v1/images/generations -H 'Authorization: Bearer {api_key}' "
             "-H 'Content-Type: application/json' -d '{\"model\":\"pixelart-16bit-64\",\"prompt\":\"a knight\"}'")
     say(f" Manage    : {exe} status | doctor | logs | update | uninstall")
-    if a.tunnel_token:
+    if IS_WIN:
+        say(f" Tray      : {exe} tray   (status / start / stop from the notification area; \"Start with Windows\" in its menu)")
+    if hub_url and join_token:
+        say(f" Worker    : connected out to {hub_url}; this node no longer takes local /v1 jobs ({exe} worker status)")
+    if a.tunnel_token and not hub_url:
         say(" Cloudflare: in Zero Trust > Access add a Bypass policy for /v1/* and /healthz, and an Allow-email policy for /admin*")
     say(" License   : Qwen-Image 2.1 weights are NON-COMMERCIAL (Qwen Research License).")
     say("=" * 70)
@@ -507,7 +603,8 @@ def cmd_update(a) -> None:
         # the app is an editable install: the checkout already switched the code. Only (re)install its
         # dependencies, never the package itself, whose launcher (this very qis.exe) is locked on Windows.
         import tomllib
-        deps = tomllib.loads((app / "pyproject.toml").read_text(encoding="utf-8"))["project"]["dependencies"]
+        project = tomllib.loads((app / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+        deps = project["dependencies"] + (project.get("optional-dependencies", {}).get("tray", []) if IS_WIN else [])
         pip_install(root, deps)
         install_comfy(root)
         DB(cfg.data_dir / "qis.db").migrate()
@@ -565,6 +662,15 @@ def cmd_service(a) -> None:
         service_install(root, root / "config" / "config.toml", a.user)
     elif a.action == "uninstall":
         service_uninstall(root)
+    elif a.action == "grant":
+        if not IS_WIN:
+            sys.exit("grant is Windows only (on Linux use sudo / polkit for systemctl)")
+        try:
+            sid = account_sid(a.user) if a.user else current_user_sid()
+            changed = service_grant(sid)
+        except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as e:
+            sys.exit(str(e))
+        say(f"{'granted' if changed else 'already granted'}: start/stop/query on '{SERVICE}' for {a.user or 'the current user'} ({sid})")
     else:
         sys.exit(service_cmd(root, a.action))
 
@@ -618,6 +724,8 @@ def register_cli(sub) -> None:
     p.add_argument("--admin-email")
     p.add_argument("--admin-password")
     p.add_argument("--tunnel-token", help="Cloudflare tunnel token: installs cloudflared as a service")
+    p.add_argument("--hub-url", help="join this QIS hub as a worker after setup (default: $QIS_HUB_URL); skips cloudflared")
+    p.add_argument("--join-token", help="the hub's worker join token (default: $QIS_JOIN_TOKEN)")
     p.add_argument("--torch-index", help="override the PyTorch wheel index (cu130 / cu126)")
     p.add_argument("--service-user")
     p.add_argument("--no-service", action="store_true")
@@ -649,9 +757,10 @@ def register_cli(sub) -> None:
     p.set_defaults(fn=cmd_logs)
 
     p = sub.add_parser("service", help="manage the OS service")
-    p.add_argument("action", choices=["install", "uninstall", "start", "stop", "restart", "status"])
+    p.add_argument("action", choices=["install", "uninstall", "start", "stop", "restart", "status", "grant"])
     p.add_argument("--root")
-    p.add_argument("--user")
+    p.add_argument("--user", help="install (Linux): account the service runs as; grant (Windows): account allowed to "
+                                  "start/stop it without elevation (default: you)")
     p.set_defaults(fn=cmd_service)
 
     p = sub.add_parser("tunnel", help="install cloudflared as a service with a tunnel token")

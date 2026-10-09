@@ -1,0 +1,97 @@
+{
+ "valid": [
+  {
+   "v": 1,
+   "type": "heartbeat",
+   "id": "m_01JA0000000000000000000005",
+   "ts": 1760000010.1,
+   "state": "ready",
+   "running": [
+    {
+     "attempt_id": "att_01JA0000000000000000000001",
+     "phase": "running",
+     "pct": 0.4
+    }
+   ],
+   "free_slots": {
+    "gpu": 0,
+    "prefetch": 1,
+    "cpu": 2
+   },
+   "loaded_model": "qwen-image-2.1-viggle-Q8_0.gguf",
+   "gpu": {
+    "util": 98,
+    "vram_used_mb": 10920,
+    "vram_total_mb": 12288,
+    "temp_c": 71,
+    "power_w": 168
+   },
+   "cpu_pct": 22.5,
+   "ram_used_mb": 30210,
+   "comfy": "ready"
+  }
+ ],
+ "invalid": [
+  {
+   "why": "missing state",
+   "msg": {
+    "v": 1,
+    "type": "heartbeat",
+    "id": "m_01JA0000000000000000000005",
+    "ts": 1760000010.1,
+    "running": [
+     {
+      "attempt_id": "att_01JA0000000000000000000001",
+      "phase": "running",
+      "pct": 0.4
+     }
+    ],
+    "free_slots": {
+     "gpu": 0,
+     "prefetch": 1,
+     "cpu": 2
+    },
+    "loaded_model": "qwen-image-2.1-viggle-Q8_0.gguf",
+    "gpu": {
+     "util": 98,
+     "vram_used_mb": 10920,
+     "vram_total_mb": 12288,
+     "temp_c": 71,
+     "power_w": 168
+    },
+    "cpu_pct": 22.5,
+    "ram_used_mb": 30210,
+    "comfy": "ready"
+   }
+  },
+  {
+   "why": "running is not a list",
+   "msg": {
+    "v": 1,
+    "type": "heartbeat",
+    "id": "m_01JA0000000000000000000005",
+    "ts": 1760000010.1,
+    "state": "ready",
+    "running": {
+     "attempt_id": "att_01JA0000000000000000000001"
+    },
+    "free_slots": {
+     "gpu": 0,
+     "prefetch": 1,
+     "cpu": 2
+    },
+    "loaded_model": "qwen-image-2.1-viggle-Q8_0.gguf",
+    "gpu": {
+     "util": 98,
+     "vram_used_mb": 10920,
+     "vram_total_mb": 12288,
+     "temp_c": 71,
+     "power_w": 168
+    },
+    "cpu_pct": 22.5,
+    "ram_used_mb": 30210,
+    "comfy": "ready"
+   }
+  }
+ ]
+}

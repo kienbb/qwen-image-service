@@ -63,6 +63,19 @@ class ModelsCfg(BaseModel):
         return ModelSet(unets=unets, clip=self.clip, vae=self.vae, upscalers=dict(self.upscalers))
 
 
+class WorkerCfg(BaseModel):
+    """Worker mode (docs/MESH.md section 8.2): connect out to a QIS Hub and run the jobs it assigns."""
+    enabled: bool = False
+    hub_url: str = "wss://qis.runnow.cc/worker/ws"
+    token_file: str = "worker.token"   # inside config/ (next to config.toml)
+    name: str = ""                     # default: hostname
+    prefetch: int = Field(1, ge=0, le=4)  # GPU jobs allowed to wait locally behind the running one
+    cpu_slots: int = Field(2, ge=1, le=32)
+    heartbeat_s: float = Field(10, ge=1, le=60)  # the hub may override it in `welcome`
+    accept_local_jobs: bool = False    # true: /v1 job routes stay open on this node (dev)
+    token: str = Field("", repr=False)  # dev override (qis worker run --token / $QIS_JOIN_TOKEN); prefer token_file
+
+
 class Config(BaseModel):
     server: ServerCfg = Field(default_factory=ServerCfg)
     paths: PathsCfg = Field(default_factory=PathsCfg)
@@ -71,6 +84,7 @@ class Config(BaseModel):
     security: SecurityCfg = Field(default_factory=SecurityCfg)
     profile: ProfileCfg = Field(default_factory=ProfileCfg)
     models: ModelsCfg = Field(default_factory=ModelsCfg)
+    worker: WorkerCfg = Field(default_factory=WorkerCfg)
     source: str = ""  # path the config was read from
 
     @property
@@ -80,6 +94,24 @@ class Config(BaseModel):
     @property
     def comfy_url(self) -> str:
         return f"http://{self.comfy.host}:{self.comfy.port}"
+
+    @property
+    def config_dir(self) -> Path:
+        return Path(self.source).parent if self.source else self.data_dir
+
+    def worker_token(self) -> str:
+        """Join token: $QIS_JOIN_TOKEN, else [worker].token, else the content of config/<token_file>; "" if none."""
+        w = self.worker
+        if w.token:
+            return w.token.strip()
+        if env := os.environ.get("QIS_JOIN_TOKEN"):
+            return env.strip()
+        p = Path(w.token_file)
+        p = p if p.is_absolute() else self.config_dir / p
+        try:
+            return p.read_text(encoding="utf-8").strip()
+        except OSError:
+            return ""
 
     def secret(self) -> bytes:
         """Per-node secret for HMAC (signed URLs, webhooks, key pepper); created on first use."""

@@ -86,6 +86,12 @@ class JobService:
     # ------------------------------------------------------------------ lifecycle
     async def start(self) -> None:
         self._http = httpx.AsyncClient(timeout=15)
+        # jobs the hub gave us before the restart are not resumed: the hub already re-assigned them (MESH.md section 1.2)
+        gone = self.db.execute("UPDATE jobs SET status='canceled', finished_at=?, error=? WHERE kind='hub' "
+                               "AND status IN ('queued','running')",
+                               (time.time(), json.dumps({"code": "canceled", "message": "node restarted"}))).rowcount
+        if gone:
+            log.warning("canceled %d hub job(s) left over from before the restart", gone)
         n = self.db.execute("UPDATE jobs SET status='queued' WHERE status='running' AND exec_node=?", (self.node_id,)).rowcount
         if n:
             log.warning("recovered %d job(s) that were running when the node stopped", n)
@@ -181,7 +187,9 @@ class JobService:
 
     # ------------------------------------------------------------------ submit
     def submit(self, spec: JobSpec, *, key: dict | None = None, user_id: str | None = None, kind: str = "pipeline",
-               idempotency_key: str | None = None) -> dict:
+               idempotency_key: str | None = None, internal: bool = False, origin_node: str | None = None) -> dict:
+        """internal=True (jobs the hub assigned, MESH.md section 1.2): the hub already did admission, so the per-key
+        limits and queue_full are skipped; the max_cost_s sanity limit stays."""
         st = self.settings.current
         key_id = key["id"] if key else None
         if idempotency_key:
@@ -204,7 +212,7 @@ class JobService:
                 raise AdmissionError(403, "file_forbidden", f"file {fid} belongs to another key", param="inputs")
         gpu = spec.gpu()
         now = time.time()
-        if key:
+        if key and not internal:
             max_pending = key.get("max_pending") or st.keys.default_max_pending
             mine = sum(1 for q in self.queued.values() if q.key_id == key_id)
             if mine >= max_pending:
@@ -217,7 +225,9 @@ class JobService:
             if len(win) >= rpm:
                 raise AdmissionError(429, "rate_limit", f"more than {rpm} requests per minute for this key",
                                      retry_after=max(1, round(60 - (now - win[0]))))
-        if gpu:
+        if internal:
+            pass
+        elif gpu:
             gpu_q = [q for q in self.queued.values() if q.gpu]
             eta = self._running_remaining() + sum(q.cost for q in gpu_q)
             if len(gpu_q) >= st.queue.max_pending:
@@ -230,7 +240,7 @@ class JobService:
                                      retry_after=max(5, round(eta + cost - st.queue.max_wait_s)))
         elif sum(1 for q in self.queued.values() if not q.gpu) >= st.queue.cpu_max_pending:
             raise AdmissionError(429, "queue_full", "CPU queue is full", retry_after=5)
-        if key:
+        if key and not internal:
             self._rpm[key_id].append(now)
 
         models = getattr(self.executor, "cfg", None)
@@ -238,7 +248,7 @@ class JobService:
         affinity = next((op.model_key(ms) for op in spec.ops if op_kind(op) == "gpu"), None) if ms else None
         priority = spec.priority or (key or {}).get("priority") or "interactive"
         job_id = new_id("job")
-        row = {"id": job_id, "api_key_id": key_id, "user_id": user_id, "origin_node": self.node_id, "exec_node": None,
+        row = {"id": job_id, "api_key_id": key_id, "user_id": user_id, "origin_node": origin_node or self.node_id, "exec_node": None,
                "kind": kind, "spec": spec.model_dump(mode="json", exclude_none=True), "preset": spec.preset,
                "status": "queued", "priority": priority, "model_affinity": affinity, "cost_s": cost, "attempts": 0,
                "created_at": now, "idempotency_key": idempotency_key, "webhook_url": spec.webhook_url,
